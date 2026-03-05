@@ -1,0 +1,69 @@
+// BestVideo — Prisma schema
+// Run: npx prisma generate && npx prisma migrate dev
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  credits   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  videoJobs     VideoJob[]
+  transactions  Transaction[]
+}
+
+enum VideoJobStatus {
+  queued
+  processing
+  completed
+  failed
+}
+
+model VideoJob {
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prompt         String
+  status         VideoJobStatus @default(queued)
+  videoUrl       String?
+  provider       String?        // e.g. "replicate", "runway"
+  providerJobId  String?
+  creditsUsed    Int            @default(0)
+  errorMessage   String?        // when status = failed
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  completedAt    DateTime?
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum TransactionType {
+  signup
+  purchase
+  consumption
+  refund
+}
+
+model Transaction {
+  id         String          @id @default(cuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount     Int             // positive = add credits, negative = deduct
+  type       TransactionType
+  videoJobId String?
+  createdAt  DateTime        @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
