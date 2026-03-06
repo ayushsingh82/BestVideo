@@ -1,42 +1,48 @@
 import { Navbar } from "./components/Navbar";
-import { HeroVideo } from "./components/HeroVideo";
+import { ConnectSection } from "./components/ConnectSection";
+import { Background } from "./components/ui/background";
 
 export default function Home() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-white font-sans">
       <Navbar />
 
-      {/* Hero: picks a random video from config/hero-videos.ts on each load */}
-      <section className="relative min-h-[85vh] w-full overflow-hidden bg-neutral-950 sm:min-h-[90vh]">
+      {/* Hero: Background video + headline, CTAs */}
+      <section className="relative min-h-[95vh] w-full overflow-hidden bg-neutral-950 sm:min-h-[100vh]">
         <div className="absolute inset-0">
-          <HeroVideo />
-          <div className="absolute inset-0 bg-neutral-950/35" />
-        </div>
-        <div className="relative z-10 flex min-h-[85vh] flex-col items-center justify-center px-4 pt-24 pb-12 text-center sm:min-h-[90vh] sm:px-6 sm:pt-28 md:pt-32">
-          <h1 className="max-w-4xl text-3xl font-semibold tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl">
-            AI-powered video in minutes, not days
-          </h1>
-          <p className="mt-4 max-w-xl text-base text-neutral-300 sm:mt-6 sm:text-lg md:text-xl">
-            Turn ideas into polished video with a single prompt. No cameras, no editing—just describe it and ship it.
-          </p>
-          <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-4">
-            <a
-              href="#create"
-              className="min-h-[44px] rounded-full bg-white px-6 py-3.5 text-center text-sm font-medium text-neutral-950 transition hover:bg-neutral-200 sm:py-3"
-            >
-              Create your first video
-            </a>
-            <a
-              href="#how"
-              className="min-h-[44px] rounded-full border border-white/30 px-6 py-3.5 text-center text-sm font-medium text-white transition hover:bg-white/10 sm:py-3"
-            >
-              See how it works
-            </a>
+          <Background
+            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/alt-g7Cv2QzqL3k6ey3igjNYkM32d8Fld7.mp4"
+            placeholder="/alt-placeholder.png"
+          />
+          <div className="absolute inset-0 z-10 flex min-h-[95vh] flex-col items-center justify-center px-4 pt-40 pb-24 text-center sm:min-h-[100vh] sm:px-6 sm:pt-44 sm:pb-28 md:pt-48 md:pb-32">
+            <h1 className="max-w-4xl text-3xl font-semibold tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl">
+              AI-powered video in minutes, not days
+            </h1>
+            <p className="mt-4 max-w-xl text-base text-neutral-300 sm:mt-6 sm:text-lg md:text-xl">
+              Turn ideas into polished video with a single prompt. No cameras, no editing—just describe it and ship it.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-4">
+              <a
+                href="#create"
+                className="min-h-[44px] rounded-full bg-white px-6 py-3.5 text-center text-sm font-medium text-neutral-950 transition hover:bg-neutral-200 sm:py-3"
+              >
+                Create your first video
+              </a>
+              <a
+                href="#how"
+                className="min-h-[44px] rounded-full border border-white/30 px-6 py-3.5 text-center text-sm font-medium text-white transition hover:bg-white/10 sm:py-3"
+              >
+                See how it works
+              </a>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* White section: black text + video in rounded frame with transparent border */}
+      {/* Connect on Instagram — draggable images + VariableProximity */}
+      <ConnectSection />
+
+      {/* White section: From prompt to publish in minutes */}
       <section
         id="how"
         className="bg-white px-4 py-16 text-neutral-900 sm:px-6 sm:py-24 md:px-10 md:py-32"
@@ -145,6 +151,65 @@ export default function Home() {
               <p className="mt-2 text-sm text-neutral-600">
                 Standard formats and shareable links. Use your videos on social, in ads, or embed in your own products.
               </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats */}
+      <section className="bg-neutral-950 px-4 py-14 sm:px-6 sm:py-20 md:px-10">
+        <div className="mx-auto max-w-5xl">
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4 sm:gap-12">
+            <div className="text-center">
+              <p className="text-3xl font-bold tracking-tight text-white sm:text-4xl">10k+</p>
+              <p className="mt-1 text-sm font-medium text-neutral-400 sm:text-base">Videos created</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-bold tracking-tight text-white sm:text-4xl">4.9</p>
+              <p className="mt-1 text-sm font-medium text-neutral-400 sm:text-base">User rating</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-bold tracking-tight text-white sm:text-4xl">50+</p>
+              <p className="mt-1 text-sm font-medium text-neutral-400 sm:text-base">Countries</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-bold tracking-tight text-white sm:text-4xl">&lt;2 min</p>
+              <p className="mt-1 text-sm font-medium text-neutral-400 sm:text-base">Avg. to first video</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Use cases */}
+      <section className="border-t border-neutral-100 bg-neutral-50/30 px-4 py-16 sm:px-6 sm:py-24 md:px-10 md:py-28">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="text-center text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl md:text-4xl">
+            Built for how you work
+          </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-center text-base text-neutral-600 sm:text-lg">
+            Whether you’re a marketer, creator, or team—BestVideo fits your workflow.
+          </p>
+          <div className="mt-12 grid gap-8 sm:mt-16 sm:grid-cols-3 sm:gap-10">
+            <div className="rounded-2xl border border-neutral-200/80 bg-white p-8 shadow-sm transition hover:shadow-md">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-900 text-white">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              </div>
+              <h3 className="mt-5 text-lg font-semibold text-neutral-900">Marketers</h3>
+              <p className="mt-2 text-sm text-neutral-600">Launch ads and social campaigns in minutes. A/B test creatives without waiting on production.</p>
+            </div>
+            <div className="rounded-2xl border border-neutral-200/80 bg-white p-8 shadow-sm transition hover:shadow-md">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-900 text-white">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+              </div>
+              <h3 className="mt-5 text-lg font-semibold text-neutral-900">Creators</h3>
+              <p className="mt-2 text-sm text-neutral-600">Turn ideas into shorts and reels fast. One prompt, multiple formats—ready for any platform.</p>
+            </div>
+            <div className="rounded-2xl border border-neutral-200/80 bg-white p-8 shadow-sm transition hover:shadow-md">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-900 text-white">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+              </div>
+              <h3 className="mt-5 text-lg font-semibold text-neutral-900">Teams</h3>
+              <p className="mt-2 text-sm text-neutral-600">Keep brand and style consistent. Scale video across campaigns with shared presets and templates.</p>
             </div>
           </div>
         </div>

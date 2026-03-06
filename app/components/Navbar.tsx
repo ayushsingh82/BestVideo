@@ -32,18 +32,19 @@ export function Navbar() {
 
   return (
     <header
-      className={`fixed left-0 right-0 top-0 z-30 border-white/10 bg-neutral-950 backdrop-blur-sm transition-all duration-300 ease-out ${
+      className={`fixed left-0 right-0 top-0 z-30 border-white/10 backdrop-blur-sm transition-all duration-300 ease-out ${
         scrolled
-          ? "mx-2 mt-2 rounded-2xl border border-white/10 shadow-lg sm:mx-4 md:mx-6 lg:mx-8"
-          : "border-b border-white/10"
+          ? "left-2 right-2 top-2 mx-0 mt-0 rounded-2xl border border-white/10 shadow-lg sm:left-4 sm:right-4 sm:top-4 md:left-6 md:right-6 md:top-4 lg:left-8 lg:right-8 lg:top-4"
+          : "left-0 right-0 top-0 rounded-none border-b border-white/10"
       }`}
+      style={{ backgroundColor: "#0a0a0a", color: "#ffffff" }}
     >
       <nav
         className={`mx-auto flex max-w-6xl items-center justify-between px-4 transition-all duration-300 sm:px-6 md:px-8 ${
           scrolled ? "h-12 py-2 sm:h-14" : "h-14 sm:h-16"
         }`}
       >
-        <a href="/" className="text-lg font-semibold text-white sm:text-xl">
+        <a href="/" className="text-lg font-semibold sm:text-xl" style={{ color: "#ffffff" }}>
           BestVideo
         </a>
 
@@ -66,12 +67,13 @@ export function Navbar() {
           </a>
         </div>
 
-        {/* Mobile menu button */}
+        {/* Mobile menu button — keep icon white when menu open */}
         <button
           type="button"
           aria-expanded={mobileOpen}
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-white transition hover:bg-white/10 md:hidden"
+          className="flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-white/10 md:hidden"
+          style={{ color: "#ffffff" }}
           onClick={() => setMobileOpen((o) => !o)}
         >
           {mobileOpen ? (
@@ -88,18 +90,24 @@ export function Navbar() {
 
       {/* Mobile menu overlay — black bg, white text; tap outside to close */}
       <div
-        className={`fixed inset-0 z-20 bg-neutral-950 pt-14 transition-opacity duration-200 md:hidden ${
+        className={`fixed inset-0 z-20 pt-14 transition-opacity duration-200 md:hidden ${
           mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
+        style={{ backgroundColor: "#0a0a0a", color: "#ffffff" }}
         aria-hidden={!mobileOpen}
         onClick={() => setMobileOpen(false)}
       >
-        <nav className="flex flex-col px-4 py-6" onClick={(e) => e.stopPropagation()}>
+        <nav
+          className="flex flex-col px-4 py-6"
+          style={{ backgroundColor: "#0a0a0a" }}
+          onClick={(e) => e.stopPropagation()}
+        >
           {navLinks.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className="rounded-lg px-4 py-3 text-base font-medium text-white transition hover:bg-white/10 hover:text-white"
+              className="rounded-lg px-4 py-3 text-base font-medium transition hover:bg-white/10"
+              style={{ color: "#ffffff" }}
               onClick={() => setMobileOpen(false)}
             >
               {link.label}
