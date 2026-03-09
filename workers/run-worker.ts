@@ -6,11 +6,12 @@
 
 import { runWorker } from "./queue-redis";
 
-console.log("Starting video generation worker...");
-const worker = runWorker();
-console.log("Worker is running. Press Ctrl+C to stop.");
+console.log("Starting background workers...");
+const { videoWorker, imageWorker } = runWorker();
+console.log("Workers are running. Press Ctrl+C to stop.");
 
 process.on("SIGTERM", async () => {
-  await worker.close();
+  await videoWorker.close();
+  await imageWorker.close();
   process.exit(0);
 });

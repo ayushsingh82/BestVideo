@@ -3,9 +3,7 @@
 import { useState, useEffect } from "react";
 
 const navLinks = [
-  { href: "#how", label: "How it works" },
-  { href: "#features", label: "Features" },
-  { href: "#pricing", label: "Pricing" },
+  { href: "/create-image", label: "Create Image" },
 ];
 
 export function Navbar() {
@@ -32,11 +30,11 @@ export function Navbar() {
 
   return (
     <header
-      className={`fixed left-0 right-0 top-0 z-30 border-white/10 backdrop-blur-sm transition-all duration-300 ease-out ${
-        scrolled
-          ? "left-2 right-2 top-2 mx-0 mt-0 rounded-2xl border border-white/10 shadow-lg sm:left-4 sm:right-4 sm:top-4 md:left-6 md:right-6 md:top-4 lg:left-8 lg:right-8 lg:top-4"
-          : "left-0 right-0 top-0 rounded-none border-b border-white/10"
-      }`}
+      className={`fixed z-30 transition-all duration-300 ease-out 
+      left-2 right-2 top-2 rounded-2xl border border-white/10 backdrop-blur-sm shadow-lg
+      sm:left-4 sm:right-4 sm:top-4
+      md:left-6 md:right-6 md:top-4
+      lg:left-8 lg:right-8 lg:top-4`}
       style={{ backgroundColor: "#0a0a0a", color: "#ffffff" }}
     >
       <nav
@@ -44,7 +42,11 @@ export function Navbar() {
           scrolled ? "h-12 py-2 sm:h-14" : "h-14 sm:h-16"
         }`}
       >
-        <a href="/" className="text-lg font-semibold sm:text-xl" style={{ color: "#ffffff" }}>
+        <a
+          href="/"
+          className="text-lg font-semibold sm:text-xl"
+          style={{ color: "#ffffff" }}
+        >
           BestVideo
         </a>
 
@@ -60,14 +62,14 @@ export function Navbar() {
             </a>
           ))}
           <a
-            href="#create"
+            href="/create-image"
             className="rounded-full bg-white px-4 py-2 text-sm font-medium text-neutral-950 transition hover:bg-neutral-200"
           >
             Get started
           </a>
         </div>
 
-        {/* Mobile menu button — keep icon white when menu open */}
+        {/* Mobile button */}
         <button
           type="button"
           aria-expanded={mobileOpen}
@@ -77,18 +79,38 @@ export function Navbar() {
           onClick={() => setMobileOpen((o) => !o)}
         >
           {mobileOpen ? (
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           ) : (
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
             </svg>
           )}
         </button>
       </nav>
 
-      {/* Mobile menu overlay — black bg, white text; tap outside to close */}
+      {/* Mobile menu */}
       <div
         className={`fixed inset-0 z-20 pt-14 transition-opacity duration-200 md:hidden ${
           mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
@@ -113,8 +135,9 @@ export function Navbar() {
               {link.label}
             </a>
           ))}
+
           <a
-            href="#create"
+            href="/create-image"
             className="mt-4 rounded-full bg-white px-6 py-3.5 text-center text-sm font-medium text-neutral-950 transition hover:bg-neutral-200"
             onClick={() => setMobileOpen(false)}
           >

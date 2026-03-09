@@ -18,6 +18,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   videoJobs     VideoJob[]
+  imageJobs     ImageJob[]
   transactions  Transaction[]
 }
 
@@ -48,6 +49,35 @@ model VideoJob {
   @@index([createdAt])
 }
 
+enum ImageJobStatus {
+  queued
+  processing
+  completed
+  failed
+}
+
+model ImageJob {
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prompt         String
+  status         ImageJobStatus @default(queued)
+  imageUrl       String?
+  aspectRatio    String?
+  provider       String?        // e.g. "replicate"
+  providerJobId  String?
+  creditsUsed    Int            @default(0)
+  errorMessage   String?        // when status = failed
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  completedAt    DateTime?
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+
 enum TransactionType {
   signup
   purchase
@@ -62,6 +92,7 @@ model Transaction {
   amount     Int             // positive = add credits, negative = deduct
   type       TransactionType
   videoJobId String?
+  imageJobId String?
   createdAt  DateTime        @default(now())
 
   @@index([userId])

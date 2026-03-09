@@ -5,6 +5,9 @@ type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 /** Credits required per video generation. */
 export const CREDITS_PER_VIDEO = 10;
 
+/** Credits required per image generation. */
+export const CREDITS_PER_IMAGE = 5;
+
 /** Free credits given on signup. */
 export const SIGNUP_CREDITS = 50;
 
@@ -29,12 +32,13 @@ export async function hasEnoughCredits(userId: string): Promise<boolean> {
 
 /**
  * Deduct credits and record a consumption transaction.
- * Call only after video generation succeeds.
+ * Call only after video/image generation succeeds.
  */
 export async function deductCredits(
   userId: string,
   amount: number,
-  videoJobId: string
+  jobId: string,
+  jobType: "video" | "image" = "video"
 ): Promise<void> {
   await prisma.$transaction(async (tx: TxClient) => {
     const user = await tx.user.findUniqueOrThrow({
@@ -53,7 +57,8 @@ export async function deductCredits(
         userId,
         amount: -amount,
         type: "consumption",
-        videoJobId,
+        videoJobId: jobType === "video" ? jobId : undefined,
+        imageJobId: jobType === "image" ? jobId : undefined,
       },
     });
   });
@@ -66,7 +71,8 @@ export async function addCredits(
   userId: string,
   amount: number,
   type: "signup" | "purchase" | "consumption" | "refund",
-  videoJobId?: string
+  jobId?: string,
+  jobType?: "video" | "image"
 ): Promise<void> {
   await prisma.$transaction(async (tx: TxClient) => {
     await tx.user.update({
@@ -74,7 +80,13 @@ export async function addCredits(
       data: { credits: { increment: amount } },
     });
     await tx.transaction.create({
-      data: { userId, amount, type, videoJobId: videoJobId ?? undefined },
+      data: {
+        userId,
+        amount,
+        type,
+        videoJobId: jobType === "video" ? jobId : undefined,
+        imageJobId: jobType === "image" ? jobId : undefined,
+      },
     });
   });
 }
@@ -92,7 +104,8 @@ export async function grantSignupCredits(userId: string): Promise<void> {
 export async function refundCredits(
   userId: string,
   amount: number,
-  videoJobId: string
+  jobId: string,
+  jobType: "video" | "image" = "video"
 ): Promise<void> {
-  await addCredits(userId, amount, "refund", videoJobId);
+  await addCredits(userId, amount, "refund", jobId, jobType);
 }
