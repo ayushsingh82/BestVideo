@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/db";
+import { Prisma, PrismaClient } from "@prisma/client";
 
-type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+type TxClient = Omit<
+  PrismaClient,
+  "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+>;
 
 /** Credits required per video generation. */
 export const CREDITS_PER_VIDEO = 10;
@@ -23,11 +27,15 @@ export async function getCredits(userId: string): Promise<number> {
 }
 
 /**
- * Check if user has enough credits for one video.
+ * Check if user has at least `amount` credits. Defaults to CREDITS_PER_VIDEO
+ * for backward compatibility with existing video callers.
  */
-export async function hasEnoughCredits(userId: string): Promise<boolean> {
+export async function hasEnoughCredits(
+  userId: string,
+  amount: number = CREDITS_PER_VIDEO
+): Promise<boolean> {
   const credits = await getCredits(userId);
-  return credits >= CREDITS_PER_VIDEO;
+  return credits >= amount;
 }
 
 /**

@@ -5,6 +5,8 @@ import { hasEnoughCredits, CREDITS_PER_IMAGE } from "@/lib/credits";
 import { enqueueImageJob, setImageJobHandler } from "@/lib/queue";
 import { processImageJob } from "@/workers/image-worker";
 import { moderatePrompt } from "@/services/moderation";
+import { getIdempotencyKey, getIdempotent, setIdempotent } from "@/utils/idempotency";
+import { rateLimit, getRequestIdentifier } from "@/utils/rate-limit";
 
 // Register in-memory queue handler once (for dev when Redis not used)
 let handlerSet = false;
@@ -15,6 +17,14 @@ function ensureHandler() {
   }
 }
 
+const VALID_RATIOS = ["1:1", "16:9", "9:16", "3:2", "2:3", "4:5"];
+
+interface SuccessBody {
+  jobId: string;
+  status: string;
+  creditsRequired: number;
+}
+
 export async function POST(request: Request) {
   let userId: string;
   try {
@@ -23,11 +33,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const rl = await rateLimit(getRequestIdentifier(request, userId), {
+    windowSeconds: 60,
+    max: 10,
+    scope: "generate-image",
+  });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests", retryAfter: rl.retryAfter },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
+  }
+
   let body: { prompt?: string; aspect_ratio?: string; idempotencyKey?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const idempotencyKey = getIdempotencyKey(request, body);
+  if (idempotencyKey) {
+    const cached = await getIdempotent<SuccessBody>(userId, `gen-image:${idempotencyKey}`);
+    if (cached) {
+      return NextResponse.json(cached, { status: 200 });
+    }
   }
 
   const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
@@ -46,37 +76,15 @@ export async function POST(request: Request) {
     );
   }
 
-  // Check if enough credits for ONE image
-  const credits = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { credits: true },
-  });
-  
-  const hasCredits = (credits?.credits ?? 0) >= CREDITS_PER_IMAGE;
+  const hasCredits = await hasEnoughCredits(userId, CREDITS_PER_IMAGE);
   if (!hasCredits) {
     return NextResponse.json(
-      { error: "Insufficient credits", code: "INSUFFICIENT_CREDITS" },
+      { error: "Insufficient credits", code: "INSUFFICIENT_CREDITS", creditsRequired: CREDITS_PER_IMAGE },
       { status: 402 }
     );
   }
 
-  // Idempotency: optional idempotencyKey to avoid duplicate jobs
-  const idempotencyKey = typeof body.idempotencyKey === "string" ? body.idempotencyKey : null;
-  if (idempotencyKey) {
-    const existing = await prisma.imageJob.findFirst({
-      where: { userId, id: idempotencyKey },
-    });
-    if (existing) {
-      return NextResponse.json(
-        { jobId: existing.id, status: existing.status, message: "Duplicate request" },
-        { status: 200 }
-      );
-    }
-  }
-
-  const aspect_ratio = ["1:1", "16:9", "9:16", "3:2", "2:3", "4:5"].includes(body.aspect_ratio || "") 
-    ? body.aspect_ratio 
-    : "1:1";
+  const aspect_ratio = VALID_RATIOS.includes(body.aspect_ratio || "") ? body.aspect_ratio! : "1:1";
 
   const job = await prisma.imageJob.create({
     data: {
@@ -96,8 +104,15 @@ export async function POST(request: Request) {
     aspect_ratio,
   });
 
-  return NextResponse.json(
-    { jobId: job.id, status: job.status, creditsRequired: CREDITS_PER_IMAGE },
-    { status: 202 }
-  );
+  const response: SuccessBody = {
+    jobId: job.id,
+    status: job.status,
+    creditsRequired: CREDITS_PER_IMAGE,
+  };
+
+  if (idempotencyKey) {
+    await setIdempotent(userId, `gen-image:${idempotencyKey}`, response);
+  }
+
+  return NextResponse.json(response, { status: 202 });
 }
