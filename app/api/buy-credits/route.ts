@@ -1,14 +1,21 @@
 import { NextResponse } from "next/server";
 import { requireUserId } from "@/lib/auth";
 import { addCredits } from "@/lib/credits";
+import { prisma } from "@/lib/db";
+import { getStripe, pricePerCreditCents } from "@/lib/stripe";
 
 /**
- * Purchase credits. In production, integrate Stripe:
- * - POST body: { priceId } or { amount }
- * - Create Stripe Checkout session or PaymentIntent
- * - On webhook (payment success), call addCredits and return
+ * Buy credits.
  *
- * This stub adds a fixed amount for testing (disable in prod or guard by env).
+ * When STRIPE_SECRET_KEY is set:
+ *   Creates a Stripe Checkout Session and returns its URL. Credits are added
+ *   asynchronously by /api/webhook/stripe on `checkout.session.completed`.
+ *
+ * When STRIPE_SECRET_KEY is unset (dev):
+ *   Adds credits immediately. Guarded in production unless
+ *   ALLOW_STUB_BUY_CREDITS=true.
+ *
+ * Body: { amount: number }   — number of credits to buy (1..100000).
  */
 export async function POST(request: Request) {
   let userId: string;
@@ -30,15 +37,43 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "amount must be between 1 and 100000" }, { status: 400 });
   }
 
-  // TODO: Verify payment via Stripe webhook before adding credits.
-  // This stub is for development only.
-  if (process.env.NODE_ENV === "production" && !process.env.ALLOW_STUB_BUY_CREDITS) {
+  const stripe = await getStripe();
+
+  if (stripe) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    const origin = request.headers.get("origin") ?? new URL(request.url).origin;
+    const unitAmount = pricePerCreditCents();
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: { name: `BestVideo credits` },
+            unit_amount: unitAmount,
+          },
+          quantity: amount,
+        },
+      ],
+      success_url: `${origin}/create-video?purchase=success`,
+      cancel_url: `${origin}/create-video?purchase=cancel`,
+      customer_email: user?.email,
+      metadata: { userId, credits: String(amount) },
+    });
+
+    return NextResponse.json({ url: session.url, sessionId: session.id });
+  }
+
+  // Dev stub
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_STUB_BUY_CREDITS !== "true") {
     return NextResponse.json(
-      { error: "Use Stripe Checkout; stub disabled in production" },
+      { error: "Configure STRIPE_SECRET_KEY or set ALLOW_STUB_BUY_CREDITS=true" },
       { status: 501 }
     );
   }
 
   await addCredits(userId, amount, "purchase");
-  return NextResponse.json({ added: amount });
+  return NextResponse.json({ added: amount, stub: true });
 }
