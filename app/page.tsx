@@ -87,41 +87,31 @@ export default function Home() {
           <div className="mt-20 grid gap-8 lg:grid-cols-2">
             <div className="group relative overflow-hidden rounded-3xl bg-neutral-900 border border-white/10 transition-all hover:border-white/20">
               <div className="aspect-[4/3] w-full relative">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
-                <video
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10 pointer-events-none" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="https://picsum.photos/id/1019/1600/1200"
+                  alt="Cinematic still"
                   className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                >
-                  <source
-                    src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"
-                    type="video/mp4"
-                  />
-                </video>
+                  loading="lazy"
+                />
                 <div className="absolute bottom-0 left-0 p-8 z-20">
                   <p className="text-sm font-medium uppercase tracking-wider text-neutral-300">Cinematic output</p>
                   <p className="mt-2 text-2xl font-semibold text-white">Single prompt generation</p>
                 </div>
               </div>
             </div>
-            
+
             <div className="group relative overflow-hidden rounded-3xl bg-neutral-900 border border-white/10 transition-all hover:border-white/20">
               <div className="aspect-[4/3] w-full relative">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
-                <video
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10 pointer-events-none" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="https://picsum.photos/id/1018/1600/1200"
+                  alt="Cinematic landscape still"
                   className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                >
-                  <source
-                    src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"
-                    type="video/mp4"
-                  />
-                </video>
+                  loading="lazy"
+                />
                 <div className="absolute bottom-0 left-0 p-8 z-20">
                   <p className="text-sm font-medium uppercase tracking-wider text-neutral-300">Smooth motion</p>
                   <p className="mt-2 text-2xl font-semibold text-white">Consistent aesthetics</p>
@@ -133,20 +123,17 @@ export default function Home() {
           {/* Hero Video scale option */}
           <div className="mt-12 group relative overflow-hidden rounded-3xl border border-white/10 bg-neutral-900 shadow-2xl transition-all hover:border-white/20">
             <div className="aspect-[21/9] w-full relative">
-              <video
-                autoPlay
-                muted
-                loop
-                playsInline
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="https://picsum.photos/id/1043/2400/1000"
+                alt="Wide cinematic still"
                 className="h-full w-full object-cover"
-              >
-                <source
-                  src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
-                  type="video/mp4"
-                />
-              </video>
-              <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                <p className="text-2xl font-bold text-white tracking-widest uppercase">One prompt. Full control.</p>
+                loading="lazy"
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors duration-300 group-hover:bg-black/50 pointer-events-none">
+                <p className="text-xl font-bold text-white tracking-widest uppercase opacity-0 transition-opacity duration-300 group-hover:opacity-100 sm:text-2xl">
+                  One prompt. Full control.
+                </p>
               </div>
             </div>
           </div>

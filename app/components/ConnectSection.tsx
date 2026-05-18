@@ -75,7 +75,7 @@ export function ConnectSection() {
   return (
     <section
       ref={containerRef}
-      className="relative min-h-screen overflow-hidden bg-[#0a0a0a]"
+      className="relative min-h-[70vh] overflow-hidden bg-[#0a0a0a] py-20 md:min-h-screen md:py-0"
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
@@ -92,7 +92,7 @@ export function ConnectSection() {
       {images.map((image, index) => (
         <div
           key={index}
-          className={`draggable-image absolute select-none ${
+          className={`draggable-image absolute hidden select-none md:block ${
             draggingIndex === index ? "z-50 cursor-grabbing" : "cursor-grab hover:z-50"
           }`}
           style={{

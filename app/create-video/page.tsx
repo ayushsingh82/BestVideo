@@ -3,6 +3,22 @@
 import { useState, useEffect } from "react";
 import { Navbar } from "@/app/components/Navbar";
 
+const QUICK_PROMPTS = [
+  "A cat walking in the rain, cinematic, slow motion",
+  "Drone shot over neon-lit Tokyo at night",
+  "Astronaut floating through cosmic nebula",
+  "Time-lapse of clouds rolling over mountains at sunset",
+];
+
+async function safeJson(res: Response): Promise<{ ok: boolean; data: Record<string, unknown> | null; text: string | null }> {
+  const text = await res.text();
+  try {
+    return { ok: true, data: text ? JSON.parse(text) : null, text };
+  } catch {
+    return { ok: false, data: null, text };
+  }
+}
+
 export default function CreateVideoPage() {
   const [prompt, setPrompt] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -18,12 +34,15 @@ export default function CreateVideoPage() {
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/job/${jobId}`);
-        if (!res.ok) throw new Error("Failed to fetch job status");
-        const data = await res.json();
-
-        setJobStatus(data.status);
+        const parsed = await safeJson(res);
+        if (!res.ok || !parsed.ok) {
+          console.error("job poll failed", res.status, parsed.text?.slice(0, 200));
+          return;
+        }
+        const data = parsed.data as { status?: string; videoUrl?: string; errorMessage?: string };
+        setJobStatus(data.status ?? null);
         if (data.status === "completed") {
-          setVideoUrl(data.videoUrl);
+          setVideoUrl(data.videoUrl ?? null);
           clearInterval(interval);
         } else if (data.status === "failed") {
           setError(data.errorMessage || "Generation failed");
@@ -57,19 +76,36 @@ export default function CreateVideoPage() {
         body: JSON.stringify({ prompt }),
       });
 
-      const data = await res.json();
+      const parsed = await safeJson(res);
+
+      if (!parsed.ok) {
+        if (res.status === 401) {
+          setError("Please sign in to generate videos.");
+        } else if (res.status >= 500) {
+          setError("The server returned an unexpected response. Please try again in a moment.");
+        } else {
+          setError(`Request failed (${res.status}). Please try again.`);
+        }
+        return;
+      }
+
+      const data = parsed.data as { jobId?: string; status?: string; error?: string; code?: string; creditsRequired?: number };
+
       if (!res.ok) {
         if (res.status === 402 && data.code === "INSUFFICIENT_CREDITS") {
-          setError(`Insufficient credits. You need ${data.creditsRequired || 10} credits.`);
+          setError(`Insufficient credits. You need ${data.creditsRequired ?? 10} credits.`);
         } else if (res.status === 429) {
           setError(data.error || "Too many requests. Please slow down.");
+        } else if (res.status === 401) {
+          setError("Please sign in to generate videos.");
         } else {
-          throw new Error(data.error || "Failed to submit job");
+          setError(data.error || "Failed to submit job");
         }
-      } else {
-        setJobId(data.jobId);
-        setJobStatus(data.status);
+        return;
       }
+
+      setJobId(data.jobId ?? null);
+      setJobStatus(data.status ?? null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "An unknown error occurred");
     } finally {
@@ -78,160 +114,229 @@ export default function CreateVideoPage() {
   }
 
   const generating = jobStatus === "queued" || jobStatus === "processing";
+  const locked = isSubmitting || generating;
+  const charCount = prompt.length;
 
   return (
     <div className="min-h-screen bg-neutral-950 font-sans text-white">
       <Navbar />
 
-      <main className="relative mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
-        <div className="mb-8 max-w-2xl">
-          <h1 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-4xl">Create Video</h1>
-          <p className="text-lg text-neutral-400">
-            Describe the scene; the AI renders a short video for you (costs 10 credits).
-          </p>
+      <main className="relative mx-auto max-w-7xl px-4 pt-28 pb-16 sm:px-6 sm:pt-32 lg:px-8 lg:pb-24">
+        {/* Header */}
+        <div className="mb-10 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-widest text-neutral-500">Studio</p>
+            <h1 className="mt-2 bg-gradient-to-br from-white to-neutral-400 bg-clip-text text-3xl font-bold tracking-tight text-transparent sm:text-4xl md:text-5xl">
+              Create a video
+            </h1>
+            <p className="mt-3 text-base text-neutral-400 sm:text-lg">
+              Describe the scene; the AI renders a short clip for you. Costs 10 credits.
+            </p>
+          </div>
+          <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-neutral-300 sm:inline-flex">
+            <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
+            Service online
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-12">
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12 lg:gap-8">
           {/* Left: Form */}
           <div className="flex flex-col gap-6 lg:col-span-5">
-            <div className="rounded-2xl border border-white/10 bg-neutral-900/50 p-6 shadow-sm backdrop-blur-md">
-              <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-transparent p-6 shadow-xl shadow-black/30 sm:p-7">
+              <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+                {/* Prompt */}
                 <div>
-                  <label htmlFor="prompt" className="mb-2 block text-sm font-semibold text-neutral-300">
-                    Prompt
-                  </label>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label htmlFor="prompt" className="text-sm font-semibold text-white">
+                      Prompt
+                    </label>
+                    <span className={`text-xs ${charCount > 1800 ? "text-amber-400" : "text-neutral-500"}`}>
+                      {charCount}/2000
+                    </span>
+                  </div>
                   <textarea
                     id="prompt"
                     value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="A cat walking in the rain, cinematic, slow motion..."
-                    className="min-h-[160px] w-full resize-y rounded-xl border border-white/10 bg-neutral-950 px-4 py-3 text-white placeholder-neutral-500 transition-colors focus:border-white/30 focus:bg-neutral-900 focus:outline-none focus:ring-1 focus:ring-white/30"
-                    disabled={isSubmitting || generating}
+                    onChange={(e) => setPrompt(e.target.value.slice(0, 2000))}
+                    placeholder="A drone shot over a tropical island at sunrise, cinematic..."
+                    className="min-h-[160px] w-full resize-y rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3.5 text-[15px] text-white placeholder-neutral-500 transition-colors focus:border-white/40 focus:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-white/20"
+                    disabled={locked}
                   />
+
+                  {/* Quick prompt chips */}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {QUICK_PROMPTS.map((p) => (
+                      <button
+                        type="button"
+                        key={p}
+                        onClick={() => !locked && setPrompt(p)}
+                        disabled={locked}
+                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-neutral-300 transition hover:border-white/30 hover:bg-white/10 hover:text-white disabled:opacity-50"
+                      >
+                        {p.length > 38 ? p.slice(0, 35) + "…" : p}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {error && (
-                  <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
-                    {error}
+                  <div className="flex gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+                    <svg className="mt-0.5 h-4 w-4 flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M4.93 19h14.14a2 2 0 001.74-3l-7.07-12a2 2 0 00-3.48 0l-7.07 12a2 2 0 001.74 3z" />
+                    </svg>
+                    <span>{error}</span>
                   </div>
                 )}
 
                 <button
                   type="submit"
-                  disabled={!prompt.trim() || isSubmitting || generating}
-                  className="mt-2 flex w-full items-center justify-center rounded-xl bg-white px-4 py-4 text-sm font-semibold text-neutral-950 shadow-md transition-all hover:bg-neutral-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-neutral-950 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white disabled:hover:shadow-md"
+                  disabled={!prompt.trim() || locked}
+                  className="group relative mt-1 flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-white px-4 py-4 text-sm font-semibold text-neutral-950 shadow-lg shadow-white/10 transition-all hover:shadow-xl hover:shadow-white/20 focus:outline-none focus:ring-2 focus:ring-white/40 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-lg"
                 >
                   {isSubmitting ? (
-                    <span className="flex items-center gap-2">
-                      <Spinner /> Submitting...
-                    </span>
+                    <><Spinner /> Submitting…</>
                   ) : generating ? (
-                    <span className="flex items-center gap-2">
-                      <Spinner /> Generating...
-                    </span>
+                    <><Spinner /> Generating…</>
                   ) : (
-                    "Generate Video"
+                    <>
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Generate video
+                      <span className="text-xs font-medium text-neutral-500">· 10 credits</span>
+                    </>
                   )}
                 </button>
               </form>
             </div>
 
-            <div className="hidden rounded-2xl border border-white/5 bg-white/5 p-6 lg:block">
-              <h3 className="mb-3 text-sm font-semibold text-white">Tips for better video prompts</h3>
-              <ul className="list-disc space-y-2.5 pl-4 text-sm text-neutral-400 marker:text-neutral-500">
-                <li>Describe motion explicitly (&quot;slow pan&quot;, &quot;tracking shot&quot;).</li>
-                <li>State the subject, setting, and lighting (&quot;neon city, night, rain&quot;).</li>
-                <li>Add a style tag (&quot;cinematic&quot;, &quot;anime&quot;, &quot;documentary&quot;).</li>
-                <li>Keep it short and concrete — long prompts can drift.</li>
+            {/* Tips */}
+            <details className="group rounded-2xl border border-white/10 bg-white/[0.03] p-5 open:bg-white/[0.05]" open>
+              <summary className="flex cursor-pointer items-center justify-between text-sm font-semibold text-white">
+                <span className="flex items-center gap-2">
+                  <svg className="h-4 w-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  Tips for better videos
+                </span>
+                <svg className="h-4 w-4 text-neutral-400 transition group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              <ul className="mt-4 grid gap-2.5 text-sm text-neutral-400">
+                <li className="flex gap-2"><span className="text-neutral-600">•</span>Describe motion (&quot;slow pan&quot;, &quot;tracking shot&quot;).</li>
+                <li className="flex gap-2"><span className="text-neutral-600">•</span>State subject, setting, and lighting.</li>
+                <li className="flex gap-2"><span className="text-neutral-600">•</span>Add a style tag (&quot;cinematic&quot;, &quot;anime&quot;, &quot;documentary&quot;).</li>
+                <li className="flex gap-2"><span className="text-neutral-600">•</span>Keep it short and concrete — long prompts can drift.</li>
               </ul>
-            </div>
+            </details>
           </div>
 
           {/* Right: Preview */}
-          <div className="flex h-[500px] flex-col lg:col-span-7 lg:h-[700px]">
-            <div className="relative flex flex-1 flex-col rounded-3xl border-2 border-dashed border-white/10 bg-white/5 p-4 transition-all duration-300 sm:p-6">
-              <div className="absolute top-4 left-0 z-20 mb-4 flex min-h-[40px] w-full items-center justify-between px-6 sm:px-8">
-                <span className="rounded-lg border border-white/10 bg-neutral-900/80 px-3 py-1.5 text-sm font-semibold uppercase tracking-widest text-neutral-400 shadow-sm backdrop-blur">
-                  Preview
-                </span>
-                {videoUrl && (
-                  <button
-                    onClick={() => {
-                      setPrompt("");
-                      setJobId(null);
-                      setJobStatus(null);
-                      setVideoUrl(null);
-                      setError(null);
-                    }}
-                    className="flex items-center gap-2 rounded-xl border border-white/10 bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-neutral-800"
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Reset
-                  </button>
-                )}
+          <div className="lg:col-span-7">
+            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.04] via-transparent to-transparent">
+              {/* Header bar */}
+              <div className="flex items-center justify-between border-b border-white/5 px-5 py-3.5 sm:px-6">
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full bg-red-500/50" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/50" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/50" />
+                  </div>
+                  <span className="ml-2 text-xs font-semibold uppercase tracking-widest text-neutral-400">
+                    Preview · 16:9
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {videoUrl && (
+                    <>
+                      <a
+                        href={videoUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        download
+                        className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10"
+                      >
+                        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download
+                      </a>
+                      <button
+                        onClick={() => {
+                          setPrompt("");
+                          setJobId(null);
+                          setJobStatus(null);
+                          setVideoUrl(null);
+                          setError(null);
+                        }}
+                        className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10"
+                      >
+                        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Reset
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
 
-              <div className="relative mt-12 flex h-full w-full flex-1 flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-neutral-950 shadow-sm">
-                {!jobStatus && !videoUrl && (
-                  <div className="animate-in fade-in flex max-w-sm flex-col items-center p-8 text-center duration-500">
-                    <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border border-white/5 bg-neutral-900 text-neutral-500 shadow-sm">
-                      <svg className="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <h3 className="mb-2 text-xl font-semibold text-white">No video yet</h3>
-                    <p className="text-base leading-relaxed text-neutral-400">
-                      Enter a prompt on the left to render your first clip. Generation usually takes a minute or two.
-                    </p>
-                  </div>
-                )}
+              {/* Canvas */}
+              <div className="relative flex w-full items-center justify-center p-4 sm:p-8" style={{ minHeight: "420px" }}>
+                <div
+                  className="absolute inset-0 opacity-[0.04]"
+                  style={{
+                    backgroundImage: `linear-gradient(45deg, #fff 25%, transparent 25%), linear-gradient(-45deg, #fff 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #fff 75%), linear-gradient(-45deg, transparent 75%, #fff 75%)`,
+                    backgroundSize: "24px 24px",
+                    backgroundPosition: "0 0, 0 12px, 12px -12px, -12px 0",
+                  }}
+                />
 
-                {generating && !videoUrl && (
-                  <div className="animate-in zoom-in-95 z-10 flex flex-col items-center p-8 text-center duration-500">
-                    <div className="relative mb-8 h-20 w-20">
-                      <div className="absolute inset-0 rounded-full border-4 border-white/10" />
-                      <div className="absolute inset-0 animate-spin rounded-full border-4 border-white border-t-transparent" />
+                <div className="relative aspect-video w-full max-w-[640px] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950 shadow-2xl">
+                  {!jobStatus && !videoUrl && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+                      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+                        <svg className="h-8 w-8 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-base font-semibold text-white">Your video will appear here</h3>
+                      <p className="mt-1.5 max-w-xs text-sm text-neutral-500">
+                        Write a prompt and hit generate. Rendering takes a minute or two.
+                      </p>
                     </div>
-                    <p className="mb-2 text-2xl font-semibold text-white">
-                      {jobStatus === "queued" ? "Queued..." : "Rendering video"}
-                    </p>
-                    <p className="max-w-[280px] text-base text-neutral-400">
-                      {jobStatus === "queued"
-                        ? "Waiting for a worker to pick this up."
-                        : "Talking to the AI provider — usually 30 seconds to a few minutes."}
-                    </p>
-                  </div>
-                )}
+                  )}
 
-                {videoUrl && (
-                  <div className="animate-in fade-in zoom-in-95 group absolute inset-0 flex h-full w-full flex-col duration-700">
-                    <div className="absolute inset-0 bg-neutral-900" />
+                  {generating && !videoUrl && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+                      <div className="relative mb-5 h-16 w-16">
+                        <div className="absolute inset-0 rounded-full border-2 border-white/10" />
+                        <div className="absolute inset-0 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      </div>
+                      <p className="text-base font-semibold text-white">
+                        {jobStatus === "queued" ? "Queued…" : "Rendering video"}
+                      </p>
+                      <p className="mt-1.5 max-w-[280px] text-sm text-neutral-500">
+                        {jobStatus === "queued"
+                          ? "Waiting for a worker"
+                          : "Usually 30 seconds to a few minutes"}
+                      </p>
+                    </div>
+                  )}
+
+                  {videoUrl && (
                     <video
                       src={videoUrl}
                       controls
                       autoPlay
                       loop
                       playsInline
-                      className="absolute inset-0 z-10 h-full w-full object-contain shadow-sm"
+                      className="absolute inset-0 h-full w-full object-cover"
                     />
-                    <div className="absolute right-4 bottom-4 z-20 flex gap-2">
-                      <a
-                        href={videoUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        download
-                        className="flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-neutral-900 shadow-xl transition-transform hover:scale-105"
-                      >
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Download
-                      </a>
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -243,7 +348,7 @@ export default function CreateVideoPage() {
 
 function Spinner() {
   return (
-    <svg className="h-4 w-4 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <svg className="h-4 w-4 animate-spin text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
     </svg>
