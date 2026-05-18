@@ -23,7 +23,7 @@ export default function Home() {
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-4">
               <a
-                href="#create"
+                href="/create-video"
                 className="min-h-[44px] rounded-full bg-white px-6 py-3.5 text-center text-sm font-medium text-neutral-950 transition hover:bg-neutral-200 sm:py-3"
               >
                 Create your first video
@@ -241,7 +241,7 @@ export default function Home() {
               </p>
               <p className="mt-2 text-sm text-neutral-400">5 generations per month</p>
               <a
-                href="/create-image"
+                href="/create-video"
                 className="mt-8 block w-full rounded-full border border-white/10 bg-white/5 py-4 text-center text-sm font-semibold text-white transition hover:bg-white/10"
               >
                 Start for free
@@ -263,7 +263,7 @@ export default function Home() {
               </p>
               <p className="mt-2 text-sm text-neutral-400">Unlimited generations</p>
               <a
-                href="/create-image"
+                href="/create-video"
                 className="mt-8 block w-full rounded-full bg-white py-4 text-center text-sm font-semibold text-black transition hover:bg-neutral-200"
               >
                 Start free trial
@@ -286,7 +286,7 @@ export default function Home() {
               </p>
               <p className="mt-2 text-sm text-neutral-400">Unlimited generations</p>
               <a
-                href="/create-image"
+                href="/create-video"
                 className="mt-8 block w-full rounded-full bg-white py-4 text-center text-sm font-semibold text-black transition hover:bg-neutral-200"
               >
                 Start free trial
@@ -337,7 +337,7 @@ export default function Home() {
                   <li><a href="#how" className="transition hover:text-white">How it works</a></li>
                   <li><a href="#features" className="transition hover:text-white">Features</a></li>
                   <li><a href="#pricing" className="transition hover:text-white">Pricing</a></li>
-                  <li><a href="#create" className="transition hover:text-white">Create video</a></li>
+                  <li><a href="/create-video" className="transition hover:text-white">Create video</a></li>
                 </ul>
               </div>
               <div>

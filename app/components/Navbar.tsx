@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 
 const navLinks = [
+  { href: "/create-video", label: "Create Video" },
   { href: "/create-image", label: "Create Image" },
 ];
 
@@ -62,7 +63,7 @@ export function Navbar() {
             </a>
           ))}
           <a
-            href="/create-image"
+            href="/create-video"
             className="rounded-full bg-white px-4 py-2 text-sm font-medium text-neutral-950 transition hover:bg-neutral-200"
           >
             Get started
@@ -137,7 +138,7 @@ export function Navbar() {
           ))}
 
           <a
-            href="/create-image"
+            href="/create-video"
             className="mt-4 rounded-full bg-white px-6 py-3.5 text-center text-sm font-medium text-neutral-950 transition hover:bg-neutral-200"
             onClick={() => setMobileOpen(false)}
           >
@@ -148,3 +149,6 @@ export function Navbar() {
     </header>
   );
 }
+
+
+
