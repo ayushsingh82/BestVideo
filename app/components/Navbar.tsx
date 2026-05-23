@@ -1,36 +1,39 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
+import Link from "next/link";
 
 const navLinks = [
-  { href: "/create-video", label: "Create Video" },
-  { href: "/create-image", label: "Create Image" },
+  { name: "How it works", href: "/#how" },
+  { name: "Features", href: "/#features" },
+  { name: "Pricing", href: "/#pricing" },
 ];
 
+const ENTER_EASE = [0.16, 1, 0.3, 1] as const;
+
 export function Navbar() {
-  const pathname = usePathname();
-  const [scrolled, setScrolled] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Close mobile menu on outside click / Escape.
+  // Close the mobile menu on outside click / Escape.
   useEffect(() => {
-    if (!mobileOpen) return;
+    if (!isMobileMenuOpen) return;
     const onPointerDown = (e: PointerEvent) => {
       if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
-        setMobileOpen(false);
+        setIsMobileMenuOpen(false);
       }
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMobileOpen(false);
+      if (e.key === "Escape") setIsMobileMenuOpen(false);
     };
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKey);
@@ -38,166 +41,131 @@ export function Navbar() {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [mobileOpen]);
-
-  // Transparent variant: on landing page hero (top of `/`, not scrolled).
-  // Stays transparent even when the mobile menu is open — the menu itself uses a blurred glass panel.
-  const isLanding = pathname === "/";
-  const transparent = isLanding && !scrolled;
-
-  // Subtle shadow on text for legibility against the video.
-  const transparentTextShadow = "0 1px 2px rgba(0,0,0,0.45), 0 0 12px rgba(0,0,0,0.25)";
-
-  // Keep border-width constant and only animate the color + bg, so there's no
-  // 1px "snap" when toggling between transparent and filled states.
-  const headerStyle: React.CSSProperties = {
-    backgroundColor: transparent ? "rgba(10, 10, 10, 0)" : "rgba(10, 10, 10, 1)",
-    color: "#ffffff",
-    borderColor: transparent ? "rgba(255, 255, 255, 0)" : "rgba(255, 255, 255, 0.1)",
-    boxShadow: transparent
-      ? "0 0 0 0 rgba(0,0,0,0)"
-      : "0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1)",
-    backdropFilter: transparent ? "blur(0px)" : "blur(4px)",
-    WebkitBackdropFilter: transparent ? "blur(0px)" : "blur(4px)",
-    transitionProperty: "background-color, border-color, box-shadow, backdrop-filter, color",
-    transitionDuration: "350ms",
-    transitionTimingFunction: "ease-out",
-  };
-
-  const linkTextClass = transparent
-    ? "font-bold text-white hover:text-white/80"
-    : "text-white hover:text-neutral-200";
-  const brandColor = "#ffffff";
-  const ctaClass = transparent
-    ? "rounded-full bg-white px-4 py-2 text-sm font-bold text-neutral-950 transition hover:bg-neutral-200"
-    : "rounded-full bg-white px-4 py-2 text-sm font-medium text-neutral-950 transition hover:bg-neutral-200";
-  const iconColor = "#ffffff";
-  const mobileBtnHover = "hover:bg-white/10";
-  const textShadowStyle = transparent ? { textShadow: transparentTextShadow } : undefined;
+  }, [isMobileMenuOpen]);
 
   return (
-    <header
+    <motion.header
       ref={headerRef}
-      className={`fixed z-30 border
-      left-2 right-2 top-2 rounded-2xl
-      sm:left-4 sm:right-4 sm:top-4
-      md:left-6 md:right-6 md:top-4
-      lg:left-8 lg:right-8 lg:top-4`}
-      style={headerStyle}
+      initial={{ y: -72, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.75, ease: ENTER_EASE }}
+      className={`fixed z-50 transition-[top,left,right] duration-500 ${
+        isScrolled ? "left-4 right-4 top-4" : "left-0 right-0 top-0"
+      }`}
     >
       <nav
-        className={`mx-auto flex max-w-6xl items-center justify-between px-4 transition-all duration-300 sm:px-6 md:px-8 ${
-          scrolled ? "h-12 py-2 sm:h-14" : "h-14 sm:h-16"
+        className={`mx-auto transition-all duration-500 ${
+          isScrolled || isMobileMenuOpen
+            ? "max-w-[1200px] rounded-2xl border border-neutral-200 bg-white/80 shadow-lg backdrop-blur-xl"
+            : "max-w-[1400px] bg-transparent"
         }`}
       >
-        <a
-          href="/"
-          className="text-lg font-semibold sm:text-xl"
-          style={{ color: brandColor, ...textShadowStyle }}
+        <div
+          className={`flex items-center justify-between px-6 transition-all duration-500 lg:px-8 ${
+            isScrolled ? "h-14" : "h-20"
+          }`}
         >
-          BestVideo
-        </a>
+          {/* Logo */}
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.25, ease: ENTER_EASE }}
+          >
+            <Link href="/" className="flex items-center gap-2">
+              <span
+                className={`font-semibold tracking-tight text-neutral-950 transition-all duration-500 ${
+                  isScrolled ? "text-xl" : "text-2xl"
+                }`}
+              >
+                BestVideo
+              </span>
+            </Link>
+          </motion.div>
 
-        {/* Desktop nav */}
-        <div className="hidden items-center gap-5 md:flex md:gap-6">
-          {navLinks.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className={`text-sm transition ${linkTextClass}`}
-              style={textShadowStyle}
+          {/* Desktop nav — staggered reveal */}
+          <div className="hidden items-center gap-12 md:flex">
+            {navLinks.map((link, i) => (
+              <motion.a
+                key={link.name}
+                href={link.href}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.32 + i * 0.08, ease: ENTER_EASE }}
+                className="group relative text-sm font-medium text-neutral-600 transition-colors duration-300 hover:text-neutral-950"
+              >
+                {link.name}
+                <span className="absolute -bottom-1 left-0 h-px w-0 bg-neutral-950 transition-all duration-300 group-hover:w-full" />
+              </motion.a>
+            ))}
+          </div>
+
+          {/* Desktop CTA */}
+          <motion.div
+            className="hidden items-center gap-4 md:flex"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.56, ease: ENTER_EASE }}
+          >
+            <Link
+              href="/create-video"
+              className={`inline-flex items-center rounded-full bg-neutral-950 font-medium text-white transition-all duration-500 hover:bg-neutral-800 ${
+                isScrolled ? "h-8 px-4 text-xs" : "h-10 px-6 text-sm"
+              }`}
             >
-              {link.label}
-            </a>
-          ))}
-          <a href="/create-video" className={ctaClass}>
-            Get started
-          </a>
+              Get started
+            </Link>
+          </motion.div>
+
+          {/* Mobile menu button */}
+          <button
+            type="button"
+            onClick={() => setIsMobileMenuOpen((o) => !o)}
+            className="p-2 text-neutral-950 md:hidden"
+            aria-label="Toggle menu"
+            aria-expanded={isMobileMenuOpen}
+          >
+            {isMobileMenuOpen ? (
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
-
-        {/* Mobile button */}
-        <button
-          type="button"
-          aria-expanded={mobileOpen}
-          aria-label={mobileOpen ? "Close menu" : "Open menu"}
-          className={`flex h-10 w-10 items-center justify-center rounded-lg transition ${mobileBtnHover} md:hidden`}
-          style={{ color: iconColor, ...textShadowStyle }}
-          onClick={() => setMobileOpen((o) => !o)}
-        >
-          {mobileOpen ? (
-            <svg
-              className="h-6 w-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          ) : (
-            <svg
-              className="h-6 w-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-            </svg>
-          )}
-        </button>
       </nav>
 
-      {/* Mobile menu — overlay sits inside the rounded header so the panel inherits the same shape */}
+      {/* Mobile dropdown — sits below the bar, only as tall as its content */}
       <div
-        className={`absolute left-0 right-0 top-full mt-2 transition-all duration-300 md:hidden ${
-          mobileOpen
+        className={`absolute left-3 right-3 top-full mt-2 origin-top transition-all duration-300 md:hidden ${
+          isMobileMenuOpen
             ? "pointer-events-auto translate-y-0 opacity-100"
             : "pointer-events-none -translate-y-2 opacity-0"
         }`}
-        aria-hidden={!mobileOpen}
+        aria-hidden={!isMobileMenuOpen}
       >
-        <nav
-          className="flex flex-col gap-1 rounded-2xl border p-3"
-          style={{
-            backgroundColor: transparent ? "rgba(10, 10, 10, 0.55)" : "rgba(10, 10, 10, 0.95)",
-            borderColor: transparent ? "rgba(255, 255, 255, 0.18)" : "rgba(255, 255, 255, 0.1)",
-            backdropFilter: "blur(16px) saturate(140%)",
-            WebkitBackdropFilter: "blur(16px) saturate(140%)",
-            boxShadow: "0 20px 40px -10px rgba(0, 0, 0, 0.5)",
-            transitionProperty: "background-color, border-color",
-            transitionDuration: "300ms",
-          }}
-        >
+        <nav className="flex flex-col gap-1 rounded-2xl border border-neutral-200 bg-white p-3 shadow-xl">
           {navLinks.map((link) => (
             <a
-              key={link.href}
+              key={link.name}
               href={link.href}
-              className="rounded-xl px-4 py-3 text-base font-semibold text-white transition hover:bg-white/10"
-              style={textShadowStyle}
-              onClick={() => setMobileOpen(false)}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="rounded-xl px-4 py-3 text-base font-medium text-neutral-800 transition hover:bg-neutral-100"
             >
-              {link.label}
+              {link.name}
             </a>
           ))}
-
-          <a
+          <Link
             href="/create-video"
-            className="mt-2 rounded-full bg-white px-6 py-3.5 text-center text-sm font-semibold text-neutral-950 transition hover:bg-neutral-200"
-            onClick={() => setMobileOpen(false)}
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="mt-2 flex items-center justify-center rounded-full bg-neutral-950 px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
           >
             Get started
-          </a>
+          </Link>
         </nav>
       </div>
-    </header>
+    </motion.header>
   );
 }
