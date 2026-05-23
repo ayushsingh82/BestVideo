@@ -1,24 +1,27 @@
-# BestVideo — Architecture & Backend Documentation
+# BestVideo — AI Video Editor (Pivot Spec)
 
-**BestVideo** is a SaaS platform that converts text prompts into AI-generated videos. This document focuses on **architecture, backend logic, APIs, token system, workflow, and infrastructure** — not UI or styling.
+> **Status:** Pivoted 2026-05-23 from text-to-video *generation* to a PunchEdit-style AI video *editor*.
+> This document is the architecture & build spec for the new product. The old text-to-video architecture
+> is retired (see §12 for the migration map).
 
 ---
 
-## 1. Project Overview
+## 1. Product Overview
 
-### What the platform does
+**BestVideo** turns **raw talking-head footage into a finished, post-ready video** — no timeline editing.
 
-**BestVideo** is a **SaaS** that lets users submit **text prompts** and receive **AI-generated videos**. The system uses external AI video generation APIs (Runway, Pika, Stability AI, Replicate, etc.) to render videos asynchronously. Users can view history, manage prompts, and download or share generated videos.
+A creator uploads themselves talking to camera. BestVideo listens to the transcript and automatically:
 
-### Core flow
+- **Burns in captions** (styled, animated subtitles)
+- **Drops in relevant images / B-roll** placed **above or beside the speaker's face** (never covering it), timed to the keywords they say
+- **Cuts** silences and filler words ("um", dead air)
+- *(later)* adds **motion graphics** and **background music**
 
 ```
-User enters prompt → Job queued → AI generates video → Video stored → User downloads / shares / exports
+Upload raw video → Transcribe → AI plans the edit → Source B-roll → Render (Remotion) → Download
 ```
 
-- **Input:** Free-form or structured text prompt (e.g. “A cat walking in the rain, cinematic”).
-- **Processing:** Backend validates the user, checks credits, enqueues a job, and a worker calls the chosen AI provider.
-- **Output:** Video file in cloud storage; user gets a link to view, download, or share.
+It's a **transform** product, not a *generate* product. Your speech drives every edit decision.
 
 ---
 
@@ -26,168 +29,173 @@ User enters prompt → Job queued → AI generates video → Video stored → Us
 
 | Feature | Description |
 |--------|-------------|
-| **Text-to-video generation** | Submit a prompt; receive a video URL when generation completes. |
-| **Prompt management** | Store, list, and optionally edit prompts per user. |
-| **Video history** | List of past jobs with status, prompt, and video URL. |
-| **Token/credit system** | Each generation consumes credits; sign-up can grant free credits; paid top-ups available. |
-| **API-based rendering** | All video creation goes through external AI video APIs (no in-house GPU). |
-| **Async processing queue** | Jobs run in background workers so HTTP requests don’t time out. |
-| **User authentication** | Identify users for credits, history, and billing. |
-| **Export/download** | Serve or redirect to stored video for download or embedding. |
+| **Raw video upload** | Browser uploads large files directly to S3/R2 via presigned/multipart URLs. |
+| **Auto transcription** | Word-level timestamps drive captions, cuts, and B-roll timing. |
+| **AI edit planning** | An LLM converts the transcript into an **Edit Decision List (EDL)**. |
+| **Burned captions** | Styled, animated subtitles rendered onto the video. |
+| **Face-aware B-roll** | Relevant stock images/clips placed in the safe zone above/beside the face. |
+| **Auto-cut** | Remove silences and filler words. |
+| **Re-edit** | User can tweak the EDL and re-render. |
+| **Credit/billing system** | Cost metered per minute of video; Stripe top-ups. |
+| **Async pipeline** | Multi-stage background workers; the UI shows real progress. |
 
 ---
 
 ## 3. System Architecture
 
-### High-level diagram
-
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   Next.js App   │────▶│  API Routes /    │────▶│  Queue (Redis/  │
-│   (Frontend)    │     │  Server Actions  │     │  BullMQ/Inngest)│
-└─────────────────┘     └────────┬─────────┘     └────────┬────────┘
-                                 │                        │
-                                 │                        ▼
-                                 │               ┌─────────────────┐
-                                 │               │ Background      │
-                                 │               │ Worker(s)       │
-                                 │               └────────┬────────┘
-                                 │                        │
-                                 ▼                        ▼
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   PostgreSQL    │◀───▶│  Next.js API     │     │  AI Video APIs   │
-│   (Prisma)      │     │  (Auth, Credits, │     │  Runway/Pika/    │
-└─────────────────┘     │   Jobs, Storage) │     │  Replicate/etc  │
-                        └────────┬─────────┘     └────────┬────────┘
-                                 │                        │
-                                 ▼                        ▼
-                        ┌──────────────────┐     ┌─────────────────┐
-                        │  S3 / R2         │◀────│  Worker uploads │
-                        │  (Video storage) │     │  completed video│
-                        └──────────────────┘     └─────────────────┘
+┌──────────────┐  presigned PUT   ┌──────────────┐
+│  Browser     │ ───────────────▶ │  S3 / R2     │  (raw upload + final renders)
+│  (Next.js)   │                  └──────┬───────┘
+└──────┬───────┘                         │
+       │ POST /api/projects              │
+       ▼                                 │
+┌──────────────┐     enqueue      ┌──────▼────────────────────────────────┐
+│  API Routes  │ ───────────────▶ │  Queues (BullMQ / Redis)              │
+│  (auth,      │                  │  transcribe → plan → source → render  │
+│   credits)   │                  └──────┬────────────────────────────────┘
+└──────┬───────┘                         │ each stage = a worker
+       │                                 ▼
+┌──────▼───────┐                  ┌───────────────────────────────────────┐
+│ PostgreSQL   │◀────────────────▶│ Workers                               │
+│ (Prisma)     │                  │  • transcribe  (Deepgram/AssemblyAI)  │
+│ Project/EDL  │                  │  • plan        (LLM → EDL)            │
+└──────────────┘                  │  • source      (Pexels/Storyblocks)   │
+                                   │  • render      (Remotion)            │
+                                   └───────────────────────────────────────┘
 ```
 
-### Components
-
-#### Frontend
-
-- **Next.js** application (App Router).
-- Serves UI for prompt input, job status, video history, and account/credits.
-- No backend logic in this doc; UI is out of scope here.
-
-#### Backend
-
-- **Next.js API routes** or **server actions** for:
-  - Auth (session, JWT, or provider).
-  - Credits: check balance, deduct on success, add on purchase.
-  - Jobs: create job, enqueue, update status, return job/video info.
-  - Storage: signed URLs or redirects for download.
-- All persistence via **Prisma** and **PostgreSQL**.
-
-#### AI providers (examples)
-
-- **Runway** (Gen-3, etc.)
-- **Pika**
-- **Stability AI** (video models)
-- **OpenAI** (video models when available)
-- **Replicate** (e.g. Stable Video Diffusion, other community models)
-
-Provider is chosen per plan or per request; worker calls the right API and handles polling or webhooks.
-
-#### Storage
-
-- **Object storage** for final videos: **AWS S3** or **Cloudflare R2**.
-- Store prompt and metadata in **PostgreSQL**; store only the object key/URL in DB.
-
-#### Database
-
-- **PostgreSQL** for users, credits, jobs, and transactions.
-- **Prisma ORM** for schema, migrations, and type-safe access.
-
-#### Queue system
-
-Video generation can take minutes. Requests must not hold open an HTTP connection; instead:
-
-1. API creates a **job** in DB and pushes it to a **queue**.
-2. A **worker** consumes the queue, calls the AI API, waits (poll or webhook), uploads the video, updates the job, and deducts credits.
-
-**Options:**
-
-- **BullMQ** (Redis-backed, Node-friendly).
-- **Redis Queue** (generic Redis list + worker).
-- **Inngest** (hosted, event-driven, good for Next.js).
-- **Trigger.dev** (background jobs for Next.js).
+**Renderer: Remotion** (React-based, self-hosted). Chosen because captions + face-aware overlays need
+per-frame pixel control and the stack is React/TS. *Caveat:* Remotion needs a paid company license past
+their team/revenue thresholds; render compute runs on the worker or `@remotion/lambda`.
 
 ---
 
-## 4. Token / Credit System
+## 4. The Edit Pipeline (the heart of the product)
 
-### Idea
+Five stages. Each is a **separate worker / queue** so it can retry independently and update `Project.status`
+for granular UI progress.
 
-- One **credit** (or token) = one unit of consumption (e.g. **10 credits = 1 video**).
-- New users get **free credits** (e.g. 50 credits).
-- Generating a video **deducts** credits when the job **succeeds**.
-- Users can **buy** more credits via **POST /api/buy-credits** (Stripe, etc.).
+1. **Upload** — browser → presigned S3/R2. On completion, `POST /api/projects/:id/complete-upload` flips the
+   project to `uploaded` and enqueues stage 2. *(not a worker)*
+2. **Transcribe** → word-level transcript `[{ word, start, end }]`. Also run a **face-detection pass** to get the
+   face bounding box over time (the "safe zone"). → status `planning`.
+3. **Plan** → an LLM reads the transcript and emits the **EDL**: spans to cut, B-roll cues
+   (`keyword + time range + search query`), caption styling. → status `sourcing`.
+4. **Source B-roll** → for each cue, search a stock provider, download the best match, store it. → status `rendering`.
+5. **Render** → Remotion composes: cut source per EDL + burn captions + overlay B-roll in the face-safe zone
+   (+ later music/graphics) → upload final → `Render.completed`, `Project.ready`, **deduct credits**.
 
-### Main tables
+### EDL shape (stored as JSON on `Project.edl`)
 
-| Table | Purpose |
-|-------|--------|
-| **Users** | `id`, `email`, `credits` (current balance), auth fields. |
-| **Credits** | Optional ledger: `userId`, `amount`, `reason` (signup, purchase, consumption), `createdAt`. |
-| **VideoJobs** | `id`, `userId`, `prompt`, `status`, `creditsReserved` or `creditsDeducted`, `videoUrl`, timestamps. |
-
-### Flow
-
-1. **Sign up** → Insert user with initial `credits` (e.g. 50).
-2. **Create job** → Check `user.credits >= costPerVideo`; if not, return 402 or 400.
-3. **Enqueue job** → Optionally reserve credits (e.g. decrement by cost, mark job as “pending”); or deduct only on success.
-4. **Worker success** → If not reserved: deduct credits; update job with `videoUrl` and `status = completed`.
-5. **Worker failure** → If credits were reserved, refund; set job `status = failed`.
-
-### Abuse and failures
-
-- **Rate limiting:** Per-user and per-IP limits on `POST /api/generate-video` (e.g. 5 req/min).
-- **Idempotency:** Use a client idempotency key so double-clicks don’t create two jobs or deduct twice.
-- **Deduct on success only:** Deduct credits only after video is stored and job is marked completed; on timeout/error, no deduction (or refund if reserved).
-- **Webhook verification:** Verify webhook signatures from the AI provider before updating job or deducting credits.
-- **Prompt moderation:** Run prompts through a moderation API (e.g. OpenAI Moderation) before enqueueing.
+```jsonc
+{
+  "cuts":   [{ "start": 12.4, "end": 13.1, "reason": "silence" }],
+  "broll":  [{ "id": "b1", "start": 5.0, "end": 8.0, "keyword": "rocket",
+               "query": "rocket launch", "position": "above-face" }],
+  "captions": { "style": "bold-yellow", "maxWordsPerLine": 4 },
+  "graphics": [],                                   // phase 3
+  "music":    null                                  // phase 3
+}
+```
 
 ---
 
-## 5. Video Generation Workflow
+## 5. Data Model (Prisma)
 
-### Lifecycle (sequence)
+`VideoJob`/`ImageJob` (prompt-centric) are replaced by an upload-centric `Project` with child assets/renders.
 
+```prisma
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  credits   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  projects     Project[]
+  transactions Transaction[]
+}
+
+enum ProjectStatus {
+  created       // row exists, awaiting upload
+  uploaded      // raw video in storage
+  transcribing
+  planning
+  sourcing      // fetching b-roll
+  rendering
+  ready
+  failed
+}
+
+model Project {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String?
+  status       ProjectStatus @default(created)
+  sourceKey    String?       // S3 key of raw upload
+  sourceUrl    String?
+  durationSec  Float?
+  transcript   Json?         // [{ word, start, end }]
+  faceTrack    Json?         // [{ t, x, y, w, h }] face safe-zone over time
+  edl          Json?         // Edit Decision List (see §4)
+  errorMessage String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  completedAt  DateTime?
+  brollAssets  BrollAsset[]
+  renders      Render[]
+  @@index([userId])
+  @@index([status])
+}
+
+model BrollAsset {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  cueId      String   // matches an EDL broll cue id
+  keyword    String
+  source     String   // "pexels" | "storyblocks" | "generated"
+  sourceUrl  String
+  storageKey String?
+  startSec   Float
+  endSec     Float
+  position   String   @default("above-face")
+  createdAt  DateTime @default(now())
+  @@index([projectId])
+}
+
+enum RenderStatus { queued rendering completed failed }
+
+model Render {
+  id           String       @id @default(cuid())
+  projectId    String
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  version      Int          @default(1)
+  status       RenderStatus @default(queued)
+  outputKey    String?
+  outputUrl    String?
+  creditsUsed  Int          @default(0)
+  errorMessage String?
+  createdAt    DateTime     @default(now())
+  completedAt  DateTime?
+  @@index([projectId])
+}
+
+enum TransactionType { signup purchase consumption refund }
+
+model Transaction {
+  id        String          @id @default(cuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    Int             // + add, - deduct
+  type      TransactionType
+  projectId String?
+  renderId  String?
+  createdAt DateTime        @default(now())
+  @@index([userId])
+}
 ```
-1. User submits prompt (POST /api/generate-video)
-2. API: validate body, auth, prompt moderation
-3. API: check user credits >= cost
-4. API: create VideoJob (status: queued), optionally reserve credits
-5. API: add job to queue (jobId, userId, prompt, provider, options)
-6. API: return 202 + jobId
-7. Worker: pick job from queue
-8. Worker: call AI video API (e.g. Runway) with prompt
-9. Worker: wait (poll or webhook) for completion
-10. Worker: download video from provider or get URL
-11. Worker: upload video to S3/R2, get permanent URL
-12. Worker: update VideoJob (status: completed, videoUrl)
-13. Worker: deduct credits (if not reserved)
-14. Worker: optional — notify user (email, push, or in-app poll)
-15. User: GET /api/video/:id or GET /api/user/videos → sees videoUrl and can download
-```
-
-### Status flow
-
-```
-queued → processing → completed
-                   → failed
-```
-
-- **queued:** In queue, not yet sent to AI.
-- **processing:** Sent to AI provider; waiting for result.
-- **completed:** Video stored; `videoUrl` set; credits deducted.
-- **failed:** Error or timeout; credits refunded if reserved.
 
 ---
 
@@ -195,220 +203,206 @@ queued → processing → completed
 
 | Method | Endpoint | Purpose |
 |--------|----------|--------|
-| **POST** | `/api/generate-video` | Submit prompt; validate, check credits, create job, enqueue; return `jobId`. Body: `{ prompt, options? }`. |
-| **GET** | `/api/video/:id` | Return job by id (metadata + `videoUrl` if completed). Auth: own job or admin. |
-| **GET** | `/api/user/videos` | List current user’s jobs (paginated) with status and `videoUrl`. |
-| **POST** | `/api/webhook/video-ready` | Provider webhook when video is ready; verify signature; update job, upload to S3/R2, deduct credits. |
-| **POST** | `/api/buy-credits` | Purchase credits (e.g. Stripe Checkout); on success, increment `user.credits` and optionally log in Transactions. |
-| **GET** | `/api/user/credits` | Return current user’s credit balance. |
-| **GET** | `/api/job/:id` | Poll job status (queued | processing | completed | failed) and `videoUrl` when done. |
+| **POST** | `/api/projects` | Create project; return `{ projectId, uploadUrl }` (presigned PUT / multipart init). |
+| **POST** | `/api/projects/:id/complete-upload` | Mark `uploaded`, enqueue transcription. |
+| **GET** | `/api/projects` | List the user's projects (status + thumbnails). |
+| **GET** | `/api/projects/:id` | Project detail: status, transcript, EDL, B-roll, renders. |
+| **PATCH** | `/api/projects/:id/edl` | User edits the plan (re-edit UI). |
+| **POST** | `/api/projects/:id/render` | (Re)render with current EDL; enqueue a new `Render`. |
+| **GET** | `/api/user/credits` | Current credit balance. *(kept)* |
+| **POST** | `/api/buy-credits` | Stripe checkout for credits. *(kept)* |
+| **POST** | `/api/webhook/stripe` | Stripe webhook → add credits. *(kept)* |
 
-All authenticated endpoints assume a session or JWT; validate and load `userId` before DB access.
-
----
-
-## 7. Background Worker
-
-### Responsibilities
-
-1. **Poll queue** for the next job (or receive via Inngest/Trigger.dev event).
-2. **Load job** from DB; validate still in `queued` or `processing`.
-3. **Call AI provider** with `prompt` (and options); get job id from provider.
-4. **Monitor** provider job (poll status or wait for webhook).
-5. **On success:** download or get URL → upload to S3/R2 → get final `videoUrl`.
-6. **Update DB:** set `VideoJob.videoUrl`, `status = completed`.
-7. **Deduct credits** (if not already reserved).
-8. **On failure:** set `status = failed`; refund if credits were reserved.
-9. **Retries:** configurable retries with backoff for transient errors; after max retries, mark failed and refund.
-
-### Deployment
-
-- Run workers as a separate process (e.g. `node workers/video-worker.js` or Inngest/Trigger.dev).
-- Scale by running multiple worker instances; queue ensures each job is handled once.
+All authenticated routes load `userId` first (via `lib/auth.ts`), and reuse the existing rate-limit +
+idempotency helpers.
 
 ---
 
-## 8. Database Schema
+## 7. Background Workers
 
-### Core tables (conceptual)
+A queue per stage; each handler updates `Project.status` and enqueues the next stage on success.
 
-**Users**
+| Worker | In | Out |
+|--------|----|----|
+| `transcribe-worker` | `uploaded` | transcript + faceTrack saved → `planning`, enqueue plan |
+| `plan-worker` | `planning` | LLM → `edl` saved → `sourcing`, enqueue source |
+| `source-worker` | `sourcing` | B-roll fetched & stored → `rendering`, enqueue render |
+| `render-worker` | `rendering` | Remotion render → upload → `Render.completed`, `Project.ready`, **deduct credits** |
 
-| Column   | Type     | Description        |
-|----------|----------|--------------------|
-| id       | uuid/pk  |                    |
-| email    | string   | Unique             |
-| credits  | int      | Current balance    |
-| createdAt| datetime |                    |
-| updatedAt| datetime |                    |
-
-**VideoJobs**
-
-| Column    | Type     | Description                    |
-|-----------|----------|--------------------------------|
-| id        | uuid/pk  |                                |
-| userId    | fk       | → Users                        |
-| prompt    | text     | User prompt                    |
-| status    | enum     | queued, processing, completed, failed |
-| videoUrl  | string?  | Final URL after completion     |
-| providerJobId | string? | AI provider’s job id       |
-| creditsUsed | int     | Credits deducted for this job  |
-| createdAt | datetime |                                |
-| updatedAt | datetime |                                |
-| completedAt | datetime? | When status → completed     |
-
-**Transactions** (credit ledger, optional but recommended)
-
-| Column   | Type     | Description              |
-|----------|----------|--------------------------|
-| id       | uuid/pk  |                          |
-| userId   | fk       | → Users                  |
-| amount   | int      | + for add, - for deduct  |
-| type     | enum     | signup, purchase, consumption, refund |
-| videoJobId | uuid?  | If type = consumption    |
-| createdAt| datetime |                          |
-
-Use **Prisma** to define these and add indexes (e.g. `userId`, `status`, `createdAt` for listing and reporting).
+On any stage failure: set `Project.status = failed` + `errorMessage`; refund if credits were reserved.
+Reuse the existing in-memory-vs-Redis queue switch in `lib/queue.ts`.
 
 ---
 
-## 9. Security Considerations
+## 8. Rendering with Remotion
 
-| Area | Measures |
-|------|----------|
-| **Rate limiting** | Per user and per IP on `/api/generate-video` and auth endpoints (e.g. 5–10/min). Use Upstash Redis or Vercel KV. |
-| **Prompt moderation** | Before enqueueing, call OpenAI Moderation or similar; reject or flag unsafe prompts. |
-| **API key protection** | Store AI provider API keys in env (e.g. Vercel/railway); never in client or repo. Worker only. |
-| **Queue protection** | Queue only from server; validate auth and credits before pushing. Don’t expose queue to client. |
-| **Webhook verification** | Validate provider webhook signature (HMAC or shared secret) before updating job or deducting credits. |
-| **Auth** | Secure session or JWT; validate on every API route that touches user data or credits. |
-| **CORS / API exposure** | Restrict API to your frontend origin if called from browser; use same-origin or strict CORS. |
+A single Remotion **composition** takes props and renders the final MP4:
 
----
+```ts
+type EditProps = {
+  sourceVideoUrl: string;
+  cuts: Cut[];                 // trim/concat the source
+  captions: CaptionWord[];     // from transcript, styled
+  broll: BrollClip[];          // { url, start, end, position }
+  faceTrack: FaceBox[];        // place broll in the safe zone above/beside the face
+  music?: { url: string; gainDb: number };
+};
+```
 
-## 10. Scaling Strategy
-
-| Component | Approach |
-|-----------|----------|
-| **Workers** | Run N worker processes or containers; queue distributes jobs. |
-| **Queue** | Use a managed Redis (Upstash, Redis Cloud) or managed job service (Inngest, Trigger.dev). |
-| **Videos** | Serve via **CDN** (CloudFront, R2 public bucket + CDN); store only in S3/R2. |
-| **Caching** | Cache user credits in Redis for a short TTL to reduce DB reads on hot paths. |
-| **API** | Stateless API routes; scale horizontally (e.g. Vercel, multiple instances). |
-| **DB** | Connection pooling (Prisma); read replicas for listing/history if needed. |
+- **Captions:** `@remotion/captions` (or render words from the transcript) with timed highlighting.
+- **Face-aware placement:** `faceTrack` (from stage 2) gives the face box per frame; B-roll is positioned in the
+  free space above/beside it so it never covers the speaker.
+- **Cuts:** sequence trimmed `<OffthreadVideo>` segments per the EDL `cuts`.
+- **Render:** `@remotion/renderer` in the `render-worker` for the MVP; move to `@remotion/lambda` for scale.
+- **License:** confirm Remotion's company-license terms before launch.
 
 ---
 
-## 11. Cost Considerations
+## 9. Storage & Upload
 
-### What costs money
+Extend `lib/storage.ts` (today it only does server-side `PutObject`) with:
 
-- **AI video APIs:** Per minute or per run (Runway, Pika, Replicate, etc.).
-- **GPU/compute:** If using Replicate or self-hosted models.
-- **Storage:** S3/R2 for video files (and backups).
-- **Bandwidth:** Serving downloads; reduce by using CDN and optional compression.
-- **Queue/Redis:** If using managed Redis or Inngest/Trigger.dev.
+- `presignedPutUrl(key, contentType)` — browser uploads raw video directly (no proxy through the API).
+- **Multipart** init/complete helpers for large files.
+- Keep `uploadVideo()` (used by the render-worker to store final output) and `getSignedUrl()`.
 
-### Profitability
-
-- **Pricing:** Set credit price so that (credit price × credits per video) > (API cost per video + storage/bandwidth).
-- **Tiers:** Free tier (limited credits), then paid packs or subscriptions.
-- **Caps:** Max video length or resolution per plan to control API cost.
-- **Caching:** Reuse or “clone” videos for identical prompts if provider supports it (optional).
+Validate on URL issue: allowed content types (`video/mp4`, `video/quicktime`…) and a max size cap.
 
 ---
 
-## 12. Future Features
+## 10. Credits / Cost Model
 
-- **Image → video:** Upload image + prompt; use img2vid APIs.
-- **Templates:** Predefined scenes; user fills in variables (e.g. “Product X in scene Y”).
-- **AI avatars:** Talking-head or avatar video from text/script.
-- **Voiceover:** TTS for narration; mux with generated video.
-- **In-app editing:** Trim, combine, or overlay text on generated clips.
-- **Batch rendering:** Multiple prompts in one request; bulk export.
-- **Public API:** API keys for developers; same credit system and webhooks for integrations.
+Flat "10 credits/video" no longer fits — cost scales with **video length** (transcription + LLM + stock API +
+render compute). Switch to **credits per minute of source video**, charged on a **successful render**.
+
+```ts
+export const CREDITS_PER_MINUTE = 10;   // tune to cover cost + margin
+export const SIGNUP_CREDITS = 50;
+```
+
+`lib/credits.ts` already takes an arbitrary `amount`, so this is a pricing change, not a rewrite. Deduct in
+`render-worker`; refund on failure.
 
 ---
 
-## 13. Folder Structure (Next.js, backend-oriented)
+## 11. Security
+
+| Area | Measure |
+|------|---------|
+| **Upload abuse** | Presigned URLs scoped to content-type + size cap; rate-limit `POST /api/projects`. |
+| **Content moderation** | Run the **transcript** through `services/moderation.ts` before/at the plan stage. |
+| **API keys** | Transcription / stock / LLM keys server-side only (workers). |
+| **Webhooks** | Verify Stripe signature before crediting. |
+| **Auth** | Validate `userId` on every project route; users only see their own projects. |
+
+---
+
+## 12. Migration Map (from the old text-to-video app)
+
+| File / area | Action |
+|---|---|
+| `lib/auth.ts`, `lib/db.ts`, `lib/stripe.ts`, `subscribe.ts` | **Keep** |
+| `lib/credits.ts` | **Keep**, retune to per-minute (§10) |
+| `utils/idempotency.ts`, `utils/rate-limit.ts` | **Keep** |
+| `lib/queue.ts` + worker pattern | **Keep**, extend to per-stage queues (§7) |
+| `lib/storage.ts` | **Extend** with presigned/multipart (§9) |
+| `services/moderation.ts` | **Repurpose** to moderate transcript |
+| `app/api/generate-video/`, `app/api/generate-image/`, `job/`, `job-image/` | **Replace** with `app/api/projects/…` |
+| `workers/video-worker.ts`, `image-worker.ts` | **Replace** with the 4 stage workers |
+| `services/video-generation.ts`, `services/image-generation.ts` | **Delete** |
+| `app/create-video/`, `app/create-image/` | **Replace** with upload + review/editor UI |
+| `db/schema.prisma` (`VideoJob`/`ImageJob`) | **Replace** with §5 models |
+
+---
+
+## 13. Build Roadmap
+
+### Phase 0 — Spine on real video *(prove it works)*
+- New Prisma schema (§5) + migrate.
+- Presigned upload (`lib/storage.ts`) + `POST /api/projects` + `complete-upload`.
+- `transcribe-worker` (Deepgram or AssemblyAI) → save transcript.
+- `GET /api/projects/:id` returns the transcript.
+- **Done when:** upload a video → see its word-level transcript.
+
+### Phase 1 — MVP *(sellable: "clean up + caption my video")*
+- `plan-worker`: silence/filler-word cuts → EDL.
+- Remotion composition: trimmed source + **burned captions**.
+- `render-worker` + `POST /api/projects/:id/render` → downloadable MP4.
+- **Done when:** upload → get back a tightened, captioned video.
+
+### Phase 2 — Face-aware B-roll
+- Face-detection pass (stage 2) → `faceTrack`.
+- `plan-worker` emits B-roll cues; `source-worker` (Pexels) fetches them.
+- Remotion overlays B-roll above/beside the face.
+
+### Phase 3 — Polish
+- Motion graphics + background music; re-edit UI (`PATCH /edl` + re-render).
+
+### Phase 4 — Scale & billing
+- Per-minute credit model live; `@remotion/lambda`; multiple workers; CDN for outputs.
+
+---
+
+## 14. Folder Structure (target)
 
 ```
 my-app/
 ├── app/
 │   ├── api/
-│   │   ├── generate-video/
-│   │   │   └── route.ts
-│   │   ├── video/
+│   │   ├── projects/
+│   │   │   ├── route.ts                 # POST create, GET list
 │   │   │   └── [id]/
-│   │   │       └── route.ts
-│   │   ├── user/
-│   │   │   ├── videos/
-│   │   │   │   └── route.ts
-│   │   │   └── credits/
-│   │   │       └── route.ts
-│   │   ├── buy-credits/
-│   │   │   └── route.ts
-│   │   └── webhook/
-│   │       └── video-ready/
-│   │           └── route.ts
-│   ├── layout.tsx
+│   │   │       ├── route.ts             # GET detail
+│   │   │       ├── complete-upload/route.ts
+│   │   │       ├── edl/route.ts         # PATCH
+│   │   │       └── render/route.ts      # POST
+│   │   ├── user/credits/route.ts        # kept
+│   │   ├── buy-credits/route.ts         # kept
+│   │   └── webhook/stripe/route.ts      # kept
+│   ├── projects/                        # upload + review/editor UI
 │   └── page.tsx
-├── lib/
-│   ├── db.ts          # Prisma client singleton
-│   ├── queue.ts       # Queue client (BullMQ/Inngest)
-│   ├── storage.ts     # S3/R2 upload & signed URL
-│   ├── auth.ts        # Session / JWT helpers
-│   └── credits.ts     # Check, deduct, add credits
+├── remotion/
+│   └── EditComposition.tsx              # the render composition
 ├── services/
-│   ├── video-generation.ts   # Call AI provider, poll or webhook
-│   └── moderation.ts        # Prompt moderation
+│   ├── transcription.ts                 # Deepgram/AssemblyAI
+│   ├── face-detect.ts                   # face track
+│   ├── edit-planner.ts                  # LLM → EDL
+│   ├── broll.ts                         # stock search + fetch
+│   └── moderation.ts                    # kept (transcript)
 ├── workers/
-│   └── video-worker.ts      # Queue consumer
-├── db/
-│   └── schema.prisma
-├── utils/
-│   ├── idempotency.ts
-│   └── rate-limit.ts
-├── package.json
-├── .env.example
-└── README.md
+│   ├── transcribe-worker.ts
+│   ├── plan-worker.ts
+│   ├── source-worker.ts
+│   ├── render-worker.ts
+│   └── run-worker.ts                    # boots all queues
+├── lib/  (auth, db, queue, storage, credits, stripe — kept/extended)
+└── db/schema.prisma
 ```
 
 ---
 
-## 14. Development Steps (Roadmap)
+## 15. Environment Variables (new/changed)
 
-| Step | Focus |
-|------|--------|
-| **1. Auth** | Add auth (NextAuth, Clerk, or custom JWT); protect API routes; get `userId` in handlers. |
-| **2. Credits** | Prisma schema (Users.credits, Transactions); signup credits; `GET /api/user/credits`; helpers to check/deduct/add. |
-| **3. AI video API** | Pick one provider (e.g. Replicate); implement `services/video-generation.ts` (submit job, poll or webhook); test with API key. |
-| **4. Queue + worker** | Add Redis + BullMQ (or Inngest); `POST /api/generate-video` creates job and enqueues; worker runs in separate process, calls service, updates job and credits. |
-| **5. Storage** | S3 or R2 bucket; worker uploads completed video; save `videoUrl` in VideoJobs; `GET /api/video/:id` returns URL or redirect. |
-| **6. Billing** | Stripe (or similar); `POST /api/buy-credits` creates checkout; webhook adds credits and logs Transaction. |
-| **7. Scaling** | Add rate limiting, caching for credits, CDN for video URLs; document env and runbook for multiple workers. |
+```
+# kept
+DATABASE_URL=
+REDIS_URL=
+S3_BUCKET= S3_REGION= S3_ENDPOINT= AWS_ACCESS_KEY_ID= AWS_SECRET_ACCESS_KEY=
+STORAGE_PUBLIC_BASE_URL=
+STRIPE_SECRET_KEY= STRIPE_WEBHOOK_SECRET=
 
----
-
-## Next: Backend Implementation
-
-The backend is implemented in this repo in the following order:
-
-1. **Prisma schema** — `db/schema.prisma`: Users, VideoJobs, Transactions.
-2. **Credit system** — `lib/credits.ts`: check, deduct, add, signup credits.
-3. **Video generation API** — `app/api/generate-video/route.ts`: POST, queue, job creation.
-4. **Queue worker** — `workers/video-worker.ts` + `workers/queue-redis.ts`: consume job, call AI, update job and credits.
-5. **Storage integration** — `lib/storage.ts`: S3/R2 upload; worker uses it when `UPLOAD_VIDEO_TO_STORAGE=true`.
-
-### Quick start (backend)
-
+# new
+TRANSCRIPTION_PROVIDER=deepgram        # or assemblyai
+DEEPGRAM_API_KEY=
+EDIT_PLANNER_PROVIDER=anthropic        # LLM for the EDL
+ANTHROPIC_API_KEY=
+PEXELS_API_KEY=                        # B-roll source (phase 2)
+REMOTION_AWS_REGION=                   # if using @remotion/lambda (phase 4)
+```
 ```bash
-cp .env.example .env   # set DATABASE_URL, etc.
+cp .env.example .env
 npm install
-npx prisma generate
-npx prisma db push     # or migrate dev
-npm run dev            # API + in-memory queue
-# With Redis: set REDIS_URL and run "npm run worker" in another terminal
+npx prisma generate && npx prisma db push
+npm run dev          # API + in-memory queue
+npm run worker       # stage workers (needs REDIS_URL)
 ```
-
-No UI is in scope for this backend-focused doc; all flows are driven by API and worker.
