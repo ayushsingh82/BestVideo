@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { AuthModal } from "./ui/auth-modal";
 
 const navLinks = [
   { name: "How it works", href: "/#how" },
@@ -15,6 +16,7 @@ const ENTER_EASE = [0.16, 1, 0.3, 1] as const;
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -44,6 +46,7 @@ export function Navbar() {
   }, [isMobileMenuOpen]);
 
   return (
+    <>
     <motion.header
       ref={headerRef}
       initial={{ y: -72, opacity: 0 }}
@@ -106,14 +109,15 @@ export function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.56, ease: ENTER_EASE }}
           >
-            <Link
-              href="/create-video"
+            <button
+              type="button"
+              onClick={() => setAuthOpen(true)}
               className={`inline-flex items-center rounded-full bg-neutral-950 font-medium text-white transition-all duration-500 hover:bg-neutral-800 ${
                 isScrolled ? "h-8 px-4 text-xs" : "h-10 px-6 text-sm"
               }`}
             >
               Get started
-            </Link>
+            </button>
           </motion.div>
 
           {/* Mobile menu button */}
@@ -157,15 +161,21 @@ export function Navbar() {
               {link.name}
             </a>
           ))}
-          <Link
-            href="/create-video"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="mt-2 flex items-center justify-center rounded-full bg-neutral-950 px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
+          <button
+            type="button"
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              setAuthOpen(true);
+            }}
+            className="mt-2 flex w-full items-center justify-center rounded-full bg-neutral-950 px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
           >
             Get started
-          </Link>
+          </button>
         </nav>
       </div>
     </motion.header>
+
+    <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} initialMode="signup" />
+    </>
   );
 }
