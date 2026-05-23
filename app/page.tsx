@@ -1,351 +1,378 @@
+import Link from "next/link";
 import { Navbar } from "./components/Navbar";
-import { ConnectSection } from "./components/ConnectSection";
-import { Background } from "./components/ui/background";
+import { Reveal } from "./components/ui/reveal";
+import { AnimatedWave } from "./components/ui/animated-wave";
+import { MetricsSection } from "./components/ui/metrics-section";
+import { PoweredBy } from "./components/ui/powered-by";
+
+const steps = [
+  {
+    kicker: "First",
+    title: "Upload raw footage",
+    body: "Drop in a video of yourself talking. No setup, no timeline, no editor to learn.",
+  },
+  {
+    kicker: "Then",
+    title: "AI does the edit",
+    body: "We transcribe, cut the silences, burn in captions, and place B-roll above your face automatically.",
+  },
+  {
+    kicker: "Finally",
+    title: "Download & ship",
+    body: "Review the result, tweak if you want, and export a post-ready video in minutes.",
+  },
+];
+
+const features = [
+  {
+    title: "Word-perfect captions",
+    body: "Styled, animated subtitles burned in and timed to every word you say.",
+  },
+  {
+    title: "Face-aware B-roll",
+    body: "Relevant images and clips placed above and beside your face — never covering it.",
+  },
+  {
+    title: "Silence & filler cuts",
+    body: "Dead air, ums and stumbles removed so every second earns its place.",
+  },
+  {
+    title: "Music & motion",
+    body: "Background tracks and motion graphics that match the energy of your script. (Soon)",
+  },
+];
+
+const useCases = [
+  {
+    title: "Creators",
+    body: "Turn one take into scroll-stopping shorts. Captions and B-roll without the all-nighter.",
+  },
+  {
+    title: "Founders",
+    body: "Record a thought, post a polished clip. Build in public without a video team.",
+  },
+  {
+    title: "Educators",
+    body: "Make lessons clear and watchable — visuals appear exactly when you explain them.",
+  },
+];
+
+const plans = [
+  {
+    name: "Starter",
+    description: "For trying it out",
+    price: "Free",
+    per: "",
+    cta: "Get started",
+    popular: false,
+    features: ["5 minutes of video / month", "Auto captions", "Silence & filler cuts", "720p export"],
+  },
+  {
+    name: "Pro",
+    description: "For regular creators",
+    price: "$19",
+    per: "/mo",
+    cta: "Start free trial",
+    popular: true,
+    features: [
+      "60 minutes of video / month",
+      "Face-aware B-roll",
+      "1080p export & re-edit",
+      "Priority rendering",
+    ],
+  },
+  {
+    name: "Team",
+    description: "For teams & brands",
+    price: "$49",
+    per: "/mo",
+    cta: "Contact sales",
+    popular: false,
+    features: ["Everything in Pro", "Brand kits & presets", "Shared workspaces", "API access"],
+  },
+];
+
+function CheckIcon() {
+  return (
+    <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}
+
+function ArrowIcon() {
+  return (
+    <svg
+      className="h-4 w-4 transition-transform group-hover:translate-x-1"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      viewBox="0 0 24 24"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  );
+}
 
 export default function Home() {
   return (
-    <div className="min-h-screen overflow-x-hidden bg-white font-sans">
+    <div className="min-h-screen overflow-x-hidden bg-white font-sans antialiased">
       <Navbar />
 
-      {/* Hero: Background video + headline, CTAs */}
-      <section className="relative min-h-[95vh] w-full overflow-hidden bg-neutral-950 sm:min-h-[100vh]">
-        <div className="absolute inset-0">
-          <Background
-            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/alt-g7Cv2QzqL3k6ey3igjNYkM32d8Fld7.mp4"
-            placeholder="/alt-placeholder.png"
-          />
-          <div className="absolute inset-0 z-10 flex min-h-[95vh] flex-col items-center justify-center px-4 pt-40 pb-24 text-center sm:min-h-[100vh] sm:px-6 sm:pt-44 sm:pb-28 md:pt-48 md:pb-32">
-            <h1 className="max-w-4xl text-3xl font-semibold tracking-tight text-white sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl">
-              AI-powered video in minutes, not days
+      {/* Hero — white */}
+      <section className="relative overflow-hidden bg-white px-4 pt-44 pb-28 text-center text-neutral-950 sm:px-6 sm:pt-56 sm:pb-40">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_55%_45%_at_50%_0%,rgba(0,0,0,0.05),transparent_70%)]" />
+        <div className="relative z-10 mx-auto max-w-5xl">
+          <Reveal>
+            <span className="inline-flex items-center gap-2 rounded-full border border-neutral-200 px-4 py-1.5 text-[0.7rem] font-medium uppercase tracking-[0.25em] text-neutral-500">
+              AI video editor
+            </span>
+          </Reveal>
+          <Reveal delay={0.08}>
+            <h1 className="mt-9 text-balance text-5xl font-semibold leading-[0.95] tracking-tight sm:text-7xl md:text-8xl">
+              Raw footage in,
+              <br />
+              <span className="font-serif font-normal italic">finished</span> video out.
             </h1>
-            <p className="mt-4 max-w-xl text-base text-neutral-300 sm:mt-6 sm:text-lg md:text-xl">
-              Turn ideas into polished video with a single prompt. No cameras, no editing—just describe it and ship it.
+          </Reveal>
+          <Reveal delay={0.16}>
+            <p className="mx-auto mt-8 max-w-xl text-lg leading-relaxed text-neutral-500 sm:text-xl">
+              Upload yourself talking. BestVideo adds captions, B-roll, and clean cuts
+              automatically — no timeline, no editing. Just upload and ship.
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-4">
-              <a
+          </Reveal>
+          <Reveal delay={0.24}>
+            <div className="mt-11 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
+              <Link
                 href="/create-video"
-                className="min-h-[44px] rounded-full bg-white px-6 py-3.5 text-center text-sm font-medium text-neutral-950 transition hover:bg-neutral-200 sm:py-3"
+                className="min-h-[48px] w-full rounded-full bg-neutral-950 px-8 py-4 text-sm font-medium text-white transition hover:bg-neutral-800 sm:w-auto"
               >
-                Create your first video
-              </a>
+                Upload your first video
+              </Link>
               <a
                 href="#how"
-                className="min-h-[44px] rounded-full border border-white/30 px-6 py-3.5 text-center text-sm font-medium text-white transition hover:bg-white/10 sm:py-3"
+                className="min-h-[48px] w-full rounded-full border border-neutral-300 px-8 py-4 text-sm font-medium text-neutral-950 transition hover:bg-neutral-100 sm:w-auto"
               >
                 See how it works
               </a>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="bg-black py-24 sm:py-32 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] mix-blend-overlay"></div>
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-10 relative z-10">
-          <div className="grid grid-cols-2 gap-y-12 gap-x-8 sm:grid-cols-4 lg:gap-x-16">
-            <div className="text-center group">
-              <p className="text-5xl font-extrabold tracking-tight md:text-6xl bg-gradient-to-br from-white to-white/40 bg-clip-text text-transparent group-hover:from-white group-hover:to-white/80 transition-all">10k+</p>
-              <p className="mt-3 text-sm font-medium uppercase tracking-widest text-neutral-500">Generations</p>
+      {/* How it works — white, square boxes, word headers */}
+      <section id="how" className="bg-white px-4 pb-28 text-neutral-950 sm:px-6 sm:pb-40">
+        <div className="mx-auto max-w-6xl">
+          <Reveal>
+            <div className="max-w-3xl">
+              <p className="font-mono text-xs uppercase tracking-[0.25em] text-neutral-400">How it works</p>
+              <h2 className="mt-5 text-balance text-5xl font-semibold leading-[1.0] tracking-tight sm:text-6xl">
+                Three steps, <span className="font-serif font-normal italic">zero</span> editing.
+              </h2>
             </div>
-            <div className="text-center group">
-              <p className="text-5xl font-extrabold tracking-tight md:text-6xl bg-gradient-to-br from-white to-white/40 bg-clip-text text-transparent group-hover:from-white group-hover:to-white/80 transition-all">4.9</p>
-              <p className="mt-3 text-sm font-medium uppercase tracking-widest text-neutral-500">User Rating</p>
-            </div>
-            <div className="text-center group">
-              <p className="text-5xl font-extrabold tracking-tight md:text-6xl bg-gradient-to-br from-white to-white/40 bg-clip-text text-transparent group-hover:from-white group-hover:to-white/80 transition-all">50+</p>
-              <p className="mt-3 text-sm font-medium uppercase tracking-widest text-neutral-500">Countries</p>
-            </div>
-            <div className="text-center group">
-              <p className="text-5xl font-extrabold tracking-tight md:text-6xl bg-gradient-to-br from-white to-white/40 bg-clip-text text-transparent group-hover:from-white group-hover:to-white/80 transition-all">&lt;10s</p>
-              <p className="mt-3 text-sm font-medium uppercase tracking-widest text-neutral-500">Avg. Time</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Connect on Instagram — draggable images + VariableProximity */}
-      <ConnectSection />
-
-      {/* White section: From prompt to publish in minutes */}
-      <section
-        id="how"
-        className="relative overflow-hidden bg-neutral-950 px-4 py-20 sm:px-6 sm:py-32 md:px-10 lg:py-40 text-white"
-      >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-neutral-800/20 via-neutral-950 to-neutral-950"></div>
-        <div className="relative mx-auto max-w-7xl">
-          <div className="flex flex-col items-center justify-center text-center">
-            <h2 className="bg-gradient-to-br from-white to-neutral-500 bg-clip-text text-4xl font-bold tracking-tight text-transparent sm:text-5xl md:text-6xl lg:text-7xl">
-              From prompt to publish<br/>in minutes
-            </h2>
-            <p className="mx-auto mt-6 max-w-2xl text-lg text-neutral-400 sm:text-xl leading-relaxed">
-              Describe your concept in plain language. Our AI handles composition, motion, and style—you get broadcast-ready visuals without a single cut.
-            </p>
-          </div>
-
-          {/* Video frame layout - Luma-inspired */}
-          <div className="mt-20 grid gap-8 lg:grid-cols-2">
-            <div className="group relative overflow-hidden rounded-3xl bg-neutral-900 border border-white/10 transition-all hover:border-white/20">
-              <div className="aspect-[4/3] w-full relative">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10 pointer-events-none" />
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="https://picsum.photos/id/1019/1600/1200"
-                  alt="Cinematic still"
-                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  loading="lazy"
-                />
-                <div className="absolute bottom-0 left-0 p-8 z-20">
-                  <p className="text-sm font-medium uppercase tracking-wider text-neutral-300">Cinematic output</p>
-                  <p className="mt-2 text-2xl font-semibold text-white">Single prompt generation</p>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <div className="mt-16 grid gap-px border border-neutral-200 bg-neutral-200 sm:grid-cols-3">
+              {steps.map((step) => (
+                <div key={step.title} className="bg-white p-10 sm:p-12">
+                  <p className="font-mono text-xs font-semibold uppercase tracking-[0.25em] text-neutral-400">
+                    {step.kicker}
+                  </p>
+                  <h3 className="mt-6 text-2xl font-semibold tracking-tight">{step.title}</h3>
+                  <p className="mt-3 text-[0.95rem] leading-relaxed text-neutral-500">{step.body}</p>
                 </div>
-              </div>
+              ))}
             </div>
+          </Reveal>
+        </div>
+      </section>
 
-            <div className="group relative overflow-hidden rounded-3xl bg-neutral-900 border border-white/10 transition-all hover:border-white/20">
-              <div className="aspect-[4/3] w-full relative">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10 pointer-events-none" />
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="https://picsum.photos/id/1018/1600/1200"
-                  alt="Cinematic landscape still"
-                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  loading="lazy"
-                />
-                <div className="absolute bottom-0 left-0 p-8 z-20">
-                  <p className="text-sm font-medium uppercase tracking-wider text-neutral-300">Smooth motion</p>
-                  <p className="mt-2 text-2xl font-semibold text-white">Consistent aesthetics</p>
+      {/* Features — the single black section, square boxes */}
+      <section id="features" className="bg-neutral-950 px-4 py-28 text-white sm:px-6 sm:py-40">
+        <div className="mx-auto max-w-6xl">
+          <Reveal>
+            <div className="max-w-3xl">
+              <p className="font-mono text-xs uppercase tracking-[0.25em] text-neutral-500">Features</p>
+              <h2 className="mt-5 text-balance text-5xl font-semibold leading-[1.0] tracking-tight sm:text-6xl">
+                Everything an editor does, <span className="font-serif font-normal italic">automatically</span>.
+              </h2>
+            </div>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <div className="mt-16 grid gap-px border border-white/10 bg-white/10 sm:grid-cols-2">
+              {features.map((f) => (
+                <div key={f.title} className="bg-neutral-950 p-10 sm:p-12">
+                  <h3 className="text-2xl font-semibold tracking-tight text-white">{f.title}</h3>
+                  <p className="mt-3 text-[0.95rem] leading-relaxed text-neutral-400">{f.body}</p>
                 </div>
-              </div>
+              ))}
             </div>
-          </div>
-
-          {/* Hero Video scale option */}
-          <div className="mt-12 group relative overflow-hidden rounded-3xl border border-white/10 bg-neutral-900 shadow-2xl transition-all hover:border-white/20">
-            <div className="aspect-[21/9] w-full relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="https://picsum.photos/id/1043/2400/1000"
-                alt="Wide cinematic still"
-                className="h-full w-full object-cover"
-                loading="lazy"
-              />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors duration-300 group-hover:bg-black/50 pointer-events-none">
-                <p className="text-xl font-bold text-white tracking-widest uppercase opacity-0 transition-opacity duration-300 group-hover:opacity-100 sm:text-2xl">
-                  One prompt. Full control.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Feature bullets */}
-          <div id="features" className="mt-24 grid gap-8 sm:grid-cols-3">
-            <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-white/5 p-8 transition hover:bg-white/10">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
-                <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-              </div>
-              <h3 className="mt-6 text-xl font-semibold text-white">Prompt to visuals</h3>
-              <p className="mt-3 text-sm leading-relaxed text-neutral-400">
-                Type your idea in plain language. Our AI handles composition, motion, and style.
-              </p>
-            </div>
-            <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-white/5 p-8 transition hover:bg-white/10">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
-                <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              </div>
-              <h3 className="mt-6 text-xl font-semibold text-white">Ship in minutes</h3>
-              <p className="mt-3 text-sm leading-relaxed text-neutral-400">
-                Run multiple generations in parallel and download or share each one instantly.
-              </p>
-            </div>
-            <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-white/5 p-8 transition hover:bg-white/10">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
-                <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-              </div>
-              <h3 className="mt-6 text-xl font-semibold text-white">Export everywhere</h3>
-              <p className="mt-3 text-sm leading-relaxed text-neutral-400">
-                Standard formats and one-click links for social, ads, or embedding anywhere.
-              </p>
-            </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
-      {/* Use cases */}
-      <section className="bg-neutral-950 px-4 py-24 sm:px-6 sm:py-32 md:px-10">
-        <div className="mx-auto max-w-7xl">
-          <div className="text-center max-w-3xl mx-auto">
-            <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl">
-              Built for how you work
+      <MetricsSection />
+
+      <PoweredBy />
+
+      {/* Use cases — light, square boxes */}
+      <section className="bg-neutral-50 px-4 py-28 text-neutral-950 sm:px-6 sm:py-40">
+        <div className="mx-auto max-w-6xl">
+          <Reveal>
+            <div className="max-w-3xl">
+              <p className="font-mono text-xs uppercase tracking-[0.25em] text-neutral-400">Who it’s for</p>
+              <h2 className="mt-5 text-balance text-5xl font-semibold leading-[1.0] tracking-tight sm:text-6xl">
+                Built for people who <span className="font-serif font-normal italic">talk</span> to camera.
+              </h2>
+            </div>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <div className="mt-16 grid gap-px border border-neutral-200 bg-neutral-200 sm:grid-cols-3">
+              {useCases.map((u) => (
+                <div key={u.title} className="bg-white p-10 sm:p-12">
+                  <h3 className="text-3xl font-semibold tracking-tight">{u.title}</h3>
+                  <p className="mt-5 text-[0.95rem] leading-relaxed text-neutral-500">{u.body}</p>
+                </div>
+              ))}
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* Pricing — Warden-style square boxes */}
+      <section id="pricing" className="bg-white px-4 py-28 text-neutral-950 sm:px-6 sm:py-40">
+        <div className="mx-auto max-w-6xl">
+          <Reveal>
+            <div className="max-w-3xl">
+              <p className="font-mono text-xs uppercase tracking-[0.25em] text-neutral-400">Pricing</p>
+              <h2 className="mt-5 text-balance text-5xl font-semibold leading-[1.0] tracking-tight sm:text-6xl">
+                Start free, scale by the <span className="font-serif font-normal italic">minute</span>.
+              </h2>
+              <p className="mt-6 max-w-xl text-lg text-neutral-500">
+                No hidden fees, no lock-in. Pay only for what you render.
+              </p>
+            </div>
+          </Reveal>
+
+          <Reveal delay={0.1}>
+            <div className="mt-16 grid gap-px border border-neutral-200 bg-neutral-200 md:grid-cols-3">
+              {plans.map((plan, idx) => (
+                <div
+                  key={plan.name}
+                  className={`relative bg-white p-8 lg:p-12 ${
+                    plan.popular ? "border-2 border-neutral-950 md:-my-4 md:py-12 lg:py-16" : ""
+                  }`}
+                >
+                  {plan.popular && (
+                    <span className="absolute -top-3 left-8 bg-neutral-950 px-3 py-1 font-mono text-xs uppercase tracking-widest text-white">
+                      Most popular
+                    </span>
+                  )}
+
+                  <div className="mb-8">
+                    <span className="font-mono text-xs text-neutral-400">
+                      {String(idx + 1).padStart(2, "0")}
+                    </span>
+                    <h3 className="mt-2 text-3xl font-semibold tracking-tight">{plan.name}</h3>
+                    <p className="mt-2 text-sm text-neutral-500">{plan.description}</p>
+                  </div>
+
+                  <div className="mb-8 border-b border-neutral-200 pb-8">
+                    <span className="text-5xl font-semibold tracking-tight lg:text-6xl">{plan.price}</span>
+                    {plan.per && <span className="ml-1 text-xl font-medium text-neutral-400">{plan.per}</span>}
+                  </div>
+
+                  <ul className="mb-10 space-y-4">
+                    {plan.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-3">
+                        <CheckIcon />
+                        <span className="text-sm text-neutral-500">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Link
+                    href="/create-video"
+                    className={`group flex w-full items-center justify-center gap-2 py-4 text-sm font-medium transition-all ${
+                      plan.popular
+                        ? "bg-neutral-950 text-white hover:bg-neutral-800"
+                        : "border border-neutral-300 text-neutral-950 hover:border-neutral-950 hover:bg-neutral-50"
+                    }`}
+                  >
+                    {plan.cta}
+                    <ArrowIcon />
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* Final CTA — white, square */}
+      <section className="bg-white px-4 pb-28 text-neutral-950 sm:px-6 sm:pb-40">
+        <Reveal className="mx-auto max-w-5xl">
+          <div className="border border-neutral-200 bg-neutral-50 px-6 py-20 text-center sm:px-12 sm:py-28">
+            <h2 className="text-balance text-5xl font-semibold leading-[1.0] tracking-tight sm:text-6xl md:text-7xl">
+              Stop editing. <span className="font-serif font-normal italic">Start</span> shipping.
             </h2>
-            <p className="mt-6 text-xl text-neutral-400">
-              Marketers, creators, and teams use BestVideo to ship creative content without the usual friction.
+            <p className="mx-auto mt-6 max-w-lg text-lg text-neutral-500">
+              Upload your first video and watch it turn into something post-ready.
             </p>
+            <Link
+              href="/create-video"
+              className="mt-10 inline-block rounded-full bg-neutral-950 px-9 py-4 text-sm font-semibold text-white transition hover:bg-neutral-800"
+            >
+              Upload your first video
+            </Link>
           </div>
-          <div className="mt-20 grid gap-8 sm:grid-cols-3">
-            <div className="group rounded-3xl border border-white/5 bg-gradient-to-b from-white/[0.03] to-transparent p-10 transition-all hover:bg-white/[0.05] hover:border-white/10">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-black shadow-lg">
-                <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-              </div>
-              <h3 className="mt-8 text-2xl font-semibold text-white">Marketers</h3>
-              <p className="mt-4 text-base leading-relaxed text-neutral-400">Launch ads and social campaigns in minutes. A/B test creatives without waiting on production.</p>
-            </div>
-            <div className="group rounded-3xl border border-white/5 bg-gradient-to-b from-white/[0.03] to-transparent p-10 transition-all hover:bg-white/[0.05] hover:border-white/10">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-black shadow-lg">
-                <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-              </div>
-              <h3 className="mt-8 text-2xl font-semibold text-white">Creators</h3>
-              <p className="mt-4 text-base leading-relaxed text-neutral-400">Turn ideas into shorts and posts fast. One prompt, multiple formats—ready for any platform.</p>
-            </div>
-            <div className="group rounded-3xl border border-white/5 bg-gradient-to-b from-white/[0.03] to-transparent p-10 transition-all hover:bg-white/[0.05] hover:border-white/10">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-black shadow-lg">
-                <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-              </div>
-              <h3 className="mt-8 text-2xl font-semibold text-white">Teams</h3>
-              <p className="mt-4 text-base leading-relaxed text-neutral-400">Keep brand and style consistent. Scale creatives across campaigns with shared presets and templates.</p>
-            </div>
-          </div>
-        </div>
+        </Reveal>
       </section>
 
-      {/* Pricing — black background */}
-      <section id="pricing" className="bg-neutral-950 px-4 py-24 text-white sm:px-6 sm:py-32 md:px-10">
-        <div className="mx-auto max-w-7xl">
-          <div className="text-center max-w-3xl mx-auto">
-            <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl">
-              Pricing that scales with you
-            </h2>
-            <p className="mt-6 text-xl text-neutral-400">
-              Start free. Upgrade when you need more. No hidden fees or lock-in.
-            </p>
-          </div>
-          <div className="mt-20 grid gap-8 lg:grid-cols-3 lg:gap-8 items-center">
-            
-            <div className="rounded-3xl border border-white/5 bg-neutral-900 p-8 xl:p-10 transition hover:border-white/10">
-              <h3 className="text-xl font-medium text-white">Starter</h3>
-              <p className="mt-4 flex items-baseline text-5xl font-extrabold tracking-tight text-white">
-                Free
-              </p>
-              <p className="mt-2 text-sm text-neutral-400">5 generations per month</p>
-              <a
-                href="/create-video"
-                className="mt-8 block w-full rounded-full border border-white/10 bg-white/5 py-4 text-center text-sm font-semibold text-white transition hover:bg-white/10"
-              >
-                Start for free
-              </a>
-              <ul className="mt-10 space-y-4 text-base text-neutral-300">
-                <li className="flex gap-3 text-neutral-400"><svg className="h-6 w-6 flex-none text-white" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> Basic exports</li>
-                <li className="flex gap-3 text-neutral-400"><svg className="h-6 w-6 flex-none text-white" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> Standard styles</li>
-                <li className="flex gap-3 text-neutral-400"><svg className="h-6 w-6 flex-none text-white" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> Community support</li>
-              </ul>
-            </div>
-
-            <div className="relative rounded-3xl border border-blue-500/30 bg-neutral-900 p-8 xl:p-10 shadow-[0_0_80px_-15px_rgba(59,130,246,0.2)] lg:scale-105 z-10 hidden md:block lg:block">
-              <span className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-blue-500 px-4 py-1 text-xs font-bold uppercase tracking-widest text-white shadow-lg">
-                Most popular
-              </span>
-              <h3 className="text-xl font-medium text-white">Pro</h3>
-              <p className="mt-4 flex items-baseline text-5xl font-extrabold tracking-tight text-white">
-                $19<span className="ml-1 text-xl font-medium text-neutral-400">/mo</span>
-              </p>
-              <p className="mt-2 text-sm text-neutral-400">Unlimited generations</p>
-              <a
-                href="/create-video"
-                className="mt-8 block w-full rounded-full bg-white py-4 text-center text-sm font-semibold text-black transition hover:bg-neutral-200"
-              >
-                Start free trial
-              </a>
-              <ul className="mt-10 space-y-4 text-base text-neutral-300">
-                <li className="flex gap-3 text-white"><svg className="h-6 w-6 flex-none text-blue-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> Highest quality export</li>
-                <li className="flex gap-3 text-white"><svg className="h-6 w-6 flex-none text-blue-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> All styles + custom presets</li>
-                <li className="flex gap-3 text-white"><svg className="h-6 w-6 flex-none text-blue-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> Priority support</li>
-              </ul>
-            </div>
-            
-            {/* Fallback for mobile (scale causes overlap issues on very small screens sometimes so we don't scale) */}
-            <div className="relative rounded-3xl border border-blue-500/30 bg-neutral-900 p-8 xl:p-10 shadow-[0_0_80px_-15px_rgba(59,130,246,0.2)] md:hidden">
-              <span className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-blue-500 px-4 py-1 text-xs font-bold uppercase tracking-widest text-white shadow-lg">
-                Most popular
-              </span>
-              <h3 className="text-xl font-medium text-white">Pro</h3>
-              <p className="mt-4 flex items-baseline text-5xl font-extrabold tracking-tight text-white">
-                $19<span className="ml-1 text-xl font-medium text-neutral-400">/mo</span>
-              </p>
-              <p className="mt-2 text-sm text-neutral-400">Unlimited generations</p>
-              <a
-                href="/create-video"
-                className="mt-8 block w-full rounded-full bg-white py-4 text-center text-sm font-semibold text-black transition hover:bg-neutral-200"
-              >
-                Start free trial
-              </a>
-              <ul className="mt-10 space-y-4 text-base text-neutral-300">
-                <li className="flex gap-3 text-white"><svg className="h-6 w-6 flex-none text-blue-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> Highest quality export</li>
-                <li className="flex gap-3 text-white"><svg className="h-6 w-6 flex-none text-blue-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> All styles + custom presets</li>
-                <li className="flex gap-3 text-white"><svg className="h-6 w-6 flex-none text-blue-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> Priority support</li>
-              </ul>
-            </div>
-
-            <div className="rounded-3xl border border-white/5 bg-neutral-900 p-8 xl:p-10 transition hover:border-white/10">
-              <h3 className="text-xl font-medium text-white">Team</h3>
-              <p className="mt-4 flex items-baseline text-5xl font-extrabold tracking-tight text-white">
-                $49<span className="ml-1 text-xl font-medium text-neutral-400">/mo</span>
-              </p>
-              <p className="mt-2 text-sm text-neutral-400">For teams and brands</p>
-              <a
-                href="/create-image"
-                className="mt-8 block w-full rounded-full border border-white/10 bg-white/5 py-4 text-center text-sm font-semibold text-white transition hover:bg-white/10"
-              >
-                Contact sales
-              </a>
-              <ul className="mt-10 space-y-4 text-base text-neutral-300">
-                <li className="flex gap-3 text-neutral-400"><svg className="h-6 w-6 flex-none text-white" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> Team workspaces</li>
-                <li className="flex gap-3 text-neutral-400"><svg className="h-6 w-6 flex-none text-white" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> Brand kits and API access</li>
-                <li className="flex gap-3 text-neutral-400"><svg className="h-6 w-6 flex-none text-white" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> Dedicated support</li>
-              </ul>
-            </div>
-          </div>
+      {/* Footer — light, animated wave background */}
+      <footer className="relative overflow-hidden border-t border-neutral-200 bg-white text-neutral-950">
+        <div className="pointer-events-none absolute inset-0 h-64 overflow-hidden opacity-20">
+          <AnimatedWave />
         </div>
-      </section>
 
-      {/* Footer */}
-      <footer className="bg-neutral-950 text-white">
-        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-14 md:px-10">
+        <div className="relative z-10 mx-auto max-w-6xl px-4 py-16 sm:px-6 md:px-10">
           <div className="flex flex-col gap-10 sm:flex-row sm:items-start sm:justify-between sm:gap-12">
             <div className="max-w-xs">
-              <a href="/" className="text-lg font-semibold tracking-tight sm:text-xl">BestVideo</a>
-              <p className="mt-2 text-sm leading-relaxed text-neutral-400">
-                Turn text into video. No cameras, no editing—just describe it and ship it.
+              <Link href="/" className="text-xl font-semibold tracking-tight">
+                BestVideo
+              </Link>
+              <p className="mt-3 text-sm leading-relaxed text-neutral-500">
+                Upload raw footage. Get a finished video — captions, B-roll, and cuts, done for you.
               </p>
             </div>
             <nav className="flex flex-wrap gap-x-12 gap-y-8 sm:gap-x-14" aria-label="Footer">
               <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Product</h4>
-                <ul className="mt-3 space-y-2 text-sm text-neutral-400">
-                  <li><a href="#how" className="transition hover:text-white">How it works</a></li>
-                  <li><a href="#features" className="transition hover:text-white">Features</a></li>
-                  <li><a href="#pricing" className="transition hover:text-white">Pricing</a></li>
-                  <li><a href="/create-video" className="transition hover:text-white">Create video</a></li>
+                <h4 className="font-mono text-xs uppercase tracking-[0.2em] text-neutral-400">Product</h4>
+                <ul className="mt-4 space-y-2.5 text-sm text-neutral-500">
+                  <li><a href="#how" className="transition hover:text-neutral-950">How it works</a></li>
+                  <li><a href="#features" className="transition hover:text-neutral-950">Features</a></li>
+                  <li><a href="#pricing" className="transition hover:text-neutral-950">Pricing</a></li>
                 </ul>
               </div>
               <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Company</h4>
-                <ul className="mt-3 space-y-2 text-sm text-neutral-400">
-                  <li><a href="#" className="transition hover:text-white">About</a></li>
-                  <li><a href="#" className="transition hover:text-white">Blog</a></li>
-                  <li><a href="#" className="transition hover:text-white">Contact</a></li>
+                <h4 className="font-mono text-xs uppercase tracking-[0.2em] text-neutral-400">Company</h4>
+                <ul className="mt-4 space-y-2.5 text-sm text-neutral-500">
+                  <li><a href="#" className="transition hover:text-neutral-950">About</a></li>
+                  <li><a href="#" className="transition hover:text-neutral-950">Blog</a></li>
+                  <li><a href="#" className="transition hover:text-neutral-950">Contact</a></li>
                 </ul>
               </div>
               <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Legal</h4>
-                <ul className="mt-3 space-y-2 text-sm text-neutral-400">
-                  <li><a href="#" className="transition hover:text-white">Privacy</a></li>
-                  <li><a href="#" className="transition hover:text-white">Terms</a></li>
+                <h4 className="font-mono text-xs uppercase tracking-[0.2em] text-neutral-400">Legal</h4>
+                <ul className="mt-4 space-y-2.5 text-sm text-neutral-500">
+                  <li><a href="#" className="transition hover:text-neutral-950">Privacy</a></li>
+                  <li><a href="#" className="transition hover:text-neutral-950">Terms</a></li>
                 </ul>
               </div>
             </nav>
           </div>
-          <div className="mt-10 border-t border-neutral-800 pt-6 text-center text-xs text-neutral-500 sm:mt-12 sm:pt-6">
-            © {new Date().getFullYear()} BestVideo. AI-powered video from text.
+          <div className="mt-14 border-t border-neutral-200 pt-7 text-center text-xs text-neutral-400">
+            © {new Date().getFullYear()} BestVideo. Raw footage in, finished video out.
           </div>
         </div>
       </footer>
