@@ -10,7 +10,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
-    "worker": "npx tsx workers/run-worker.ts"
+    "worker": "npx tsx workers/run-worker.ts",
+    "demo:caption": "npx tsx --env-file=.env.local scripts/demo-caption.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.700.0",

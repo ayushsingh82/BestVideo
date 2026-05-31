@@ -150,24 +150,20 @@ export default function CreateVideoPage() {
     setStatus("uploading");
     setError(null);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "mp4";
-      const createRes = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: file.name,
-          contentType: file.type,
-          ext,
-          settings: { subtitles, broll, font: fontId, fontColor, highlightColor },
-        }),
-      });
-      if (!createRes.ok) throw new Error(`Couldn't start the project (${createRes.status}).`);
-      const { projectId, uploadUrl } = (await createRes.json()) as { projectId: string; uploadUrl: string };
+      const form = new FormData();
+      form.append("file", file);
+      form.append(
+        "settings",
+        JSON.stringify({ subtitles, broll, font: fontId, fontColor, highlightColor })
+      );
 
-      const putRes = await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
-      if (!putRes.ok) throw new Error(`Upload failed (${putRes.status}).`);
+      const createRes = await fetch("/api/projects", { method: "POST", body: form });
+      if (!createRes.ok) {
+        const data = (await createRes.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? `Couldn't start the project (${createRes.status}).`);
+      }
+      const { projectId } = (await createRes.json()) as { projectId: string };
 
-      await fetch(`/api/projects/${projectId}/complete-upload`, { method: "POST" });
       setStatus("done");
       window.location.href = `/projects/${projectId}`;
     } catch (e) {
@@ -345,10 +341,10 @@ export default function CreateVideoPage() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
-                    Uploading…
+                    Adding captions…
                   </>
                 ) : (
-                  "Upload & start editing"
+                  "Add captions"
                 )}
               </button>
               <p className="text-xs text-neutral-400">Your footage is private — only you can see your projects.</p>
