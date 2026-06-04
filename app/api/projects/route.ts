@@ -18,11 +18,16 @@ export const maxDuration = 60;
 interface Settings {
   subtitles?: boolean;
   broll?: boolean;
+  /** Percentage (0–100) of the video to fill with contextual B-roll photos. */
+  brollPercent?: number;
   font?: string;
   fontColor?: string;
   highlightColor?: string;
   templateId?: string;
 }
+
+// How much of the video gets B-roll when the user picks "Add photos".
+const DEFAULT_BROLL_PERCENT = 50;
 
 export async function POST(request: Request) {
   if (!process.env.ZAPCAP_API_KEY) {
@@ -59,11 +64,15 @@ export async function POST(request: Request) {
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
+    const brollPercent = settings.broll
+      ? settings.brollPercent ?? DEFAULT_BROLL_PERCENT
+      : undefined;
     const { videoId, taskId } = await startCaptionJob({
       fileBuffer: buffer,
       fileName: file.name || "video.mp4",
       // ZAPCAP_TEMPLATE_ID env or first template is used when not provided.
       templateId: settings.templateId,
+      brollPercent,
     });
 
     return NextResponse.json(

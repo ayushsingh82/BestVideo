@@ -25,6 +25,11 @@ export interface CaptionVideoInput {
   templateId?: string;
   /** Transcription language (default "en"). */
   language?: string;
+  /**
+   * Auto B-roll: percentage (0–100) of the video that gets contextual photos/
+   * footage matched to the transcript by ZapCap. Omit/undefined = no B-roll.
+   */
+  brollPercent?: number;
 }
 
 export interface CaptionVideoResult {
@@ -111,11 +116,21 @@ export async function resolveTemplateId(preferred?: string): Promise<string> {
 }
 
 /** Create a captioning task; returns the task id. */
-async function createTask(videoId: string, templateId: string, language: string): Promise<string> {
+async function createTask(
+  videoId: string,
+  templateId: string,
+  language: string,
+  brollPercent?: number
+): Promise<string> {
+  const body: Record<string, unknown> = { templateId, autoApprove: true, language };
+  if (typeof brollPercent === "number" && brollPercent > 0) {
+    // ZapCap matches contextual photos/footage to the transcript automatically.
+    body.transcribeSettings = { broll: { brollPercent: Math.min(100, brollPercent) } };
+  }
   const res = await fetch(`${ZAPCAP_BASE_URL}/videos/${videoId}/task`, {
     method: "POST",
     headers: headers({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ templateId, autoApprove: true, language }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     throw new Error(`ZapCap create-task error: ${res.status} ${await res.text()}`);
@@ -147,7 +162,7 @@ export async function startCaptionJob(
     ? await uploadFile(input.fileBuffer, input.fileName ?? "video.mp4")
     : await uploadByUrl(input.videoUrl as string);
   const templateId = await resolveTemplateId(input.templateId);
-  const taskId = await createTask(videoId, templateId, input.language ?? "en");
+  const taskId = await createTask(videoId, templateId, input.language ?? "en", input.brollPercent);
   return { videoId, taskId };
 }
 
