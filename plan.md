@@ -15,6 +15,20 @@ Captioning works end-to-end via **ZapCap**:
 
 Config in `.env.local`: `ZAPCAP_API_KEY`, optional `ZAPCAP_TEMPLATE_ID` (default = "Hormozi 3").
 
+## B-roll photos ("Add photos" button) — our own layer
+
+ZapCap's auto B-roll is **paid-only** (free tier silently ignores `brollPercent`), and even paid placement is template-controlled. So photos are built ourselves:
+
+- **"Add photos"** on `/create-video`: upload → transcribe (via ZapCap) → match images to keywords → **overlay on the top 30% of the ORIGINAL video** (no captions, no watermark), synced to speech. Live preview, not yet a burned-in MP4.
+- `POST /api/broll` — takes the transcript URL, picks keyword moments (uses ZapCap's `important: true` word flags), searches **Openverse** (keyless Creative-Commons image search) for one image per keyword, returns timed cues `{ start, end, query, imageUrl }`.
+- `BrollPreview` component plays the local video and swaps the top-30% image as the playhead hits each cue.
+
+### B-roll limitations / next
+
+- Uses ZapCap **only for the transcript**, so it still waits for ZapCap's render (~1–3 min) and spends a little quota. **Swap to OpenAI Whisper** to make it fast/cheap and ZapCap-free.
+- **Openverse relevance is mixed.** **Pexels** (free key) gives nicer, more literal photos.
+- Preview only — to ship a downloadable file, burn the overlay in with a renderer (Shotstack / Remotion / ffmpeg).
+
 ## ⚠️ ZapCap limitations (important)
 
 - **Watermark on output.** The free tier burns a **ZapCap watermark** into the rendered video. Removing it requires a paid plan.
