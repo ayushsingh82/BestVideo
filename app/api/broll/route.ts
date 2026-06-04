@@ -59,43 +59,96 @@ function endOf(w: Word): number {
   return w.end ?? w.end_time ?? startOf(w);
 }
 
-/** Pick keyword moments: prefer ZapCap's `important` words, else any keyword. */
+// How many photos to aim for across the clip, and how they're timed.
+const TARGET_PHOTOS = 10;
+const MIN_PHOTOS = 5;
+// Space keywords ~2.5s apart so each photo gets a clean 2–3s slot (≈12 max in 30s).
+const MIN_SPACING_S = 2.5;
+// Each photo stays on screen this long (capped by the next photo / end of speech).
+const PHOTO_DURATION_S = 3;
+
+/**
+ * Pick keyword moments spread across the clip: prefer ZapCap's `important`
+ * words, then fall back to any keyword, aiming for ~TARGET_PHOTOS evenly.
+ */
 function pickKeywordWords(words: Word[]): Word[] {
   const important = words.filter((w) => w.important && isKeyword(w.text));
-  const pool = important.length > 0 ? important : words.filter((w) => isKeyword(w.text));
+  const anyKeyword = words.filter((w) => isKeyword(w.text));
+  // Start from important words; top up with other keywords if we have too few.
+  let pool = important.length >= MIN_PHOTOS ? important : anyKeyword;
+  if (pool.length === 0) return [];
 
-  // Thin out so photos don't change too fast: keep ~1 keyword per 2s.
-  const chosen: Word[] = [];
+  // Drop duplicate keywords up front so every photo is distinct.
+  const seenWord = new Set<string>();
+  pool = pool.filter((w) => {
+    const k = cleanWord(w.text as string);
+    if (seenWord.has(k)) return false;
+    seenWord.add(k);
+    return true;
+  });
+
+  // Evenly sample down to TARGET_PHOTOS while respecting a minimum spacing.
+  const step = Math.max(1, Math.floor(pool.length / TARGET_PHOTOS));
+  const sampled: Word[] = [];
   let lastStart = -Infinity;
-  for (const w of pool) {
-    if (startOf(w) - lastStart >= 2) {
-      chosen.push(w);
+  for (let i = 0; i < pool.length && sampled.length < TARGET_PHOTOS; i += step) {
+    const w = pool[i];
+    if (startOf(w) - lastStart >= MIN_SPACING_S) {
+      sampled.push(w);
       lastStart = startOf(w);
     }
   }
-  return chosen.slice(0, 12); // cap requests to Openverse
+  return sampled;
 }
 
-/** Search Openverse for one image; returns a hotlinkable thumbnail URL. */
-async function searchImage(query: string): Promise<{ url: string; title?: string } | null> {
-  const endpoint = `https://api.openverse.org/v1/images/?q=${encodeURIComponent(
-    query
-  )}&page_size=3&mature=false`;
+interface ImageHit {
+  url: string;
+  title?: string;
+}
+
+/** Pexels — high-quality stock photos. Requires PEXELS_API_KEY. */
+async function searchPexels(query: string): Promise<ImageHit | null> {
+  const key = process.env.PEXELS_API_KEY;
+  if (!key) return null;
   try {
-    const res = await fetch(endpoint, {
-      headers: { "User-Agent": "BestVideo/1.0 (b-roll demo)", Accept: "application/json" },
-    });
+    const res = await fetch(
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=1&orientation=landscape`,
+      { headers: { Authorization: key } }
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      photos?: { src?: { large?: string; medium?: string; landscape?: string }; alt?: string }[];
+    };
+    const p = data.photos?.[0];
+    const url = p?.src?.large || p?.src?.landscape || p?.src?.medium;
+    return url ? { url, title: p?.alt } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Openverse — keyless Creative-Commons image search (fallback). */
+async function searchOpenverse(query: string): Promise<ImageHit | null> {
+  try {
+    const res = await fetch(
+      `https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}&page_size=3&mature=false`,
+      { headers: { "User-Agent": "BestVideo/1.0 (b-roll demo)", Accept: "application/json" } }
+    );
     if (!res.ok) return null;
     const data = (await res.json()) as {
       results?: { thumbnail?: string; url?: string; title?: string }[];
     };
     const hit = data.results?.find((r) => r.thumbnail || r.url);
     if (!hit) return null;
-    // Openverse's own thumbnail proxy is reliably hotlinkable.
     return { url: (hit.thumbnail || hit.url) as string, title: hit.title };
   } catch {
     return null;
   }
+}
+
+/** Best available image for a query: Pexels first (quality), else Openverse. */
+async function searchImage(query: string): Promise<ImageHit | null> {
+  return (await searchPexels(query)) ?? (await searchOpenverse(query));
 }
 
 export async function POST(request: Request) {
@@ -146,11 +199,14 @@ export async function POST(request: Request) {
   const hits = found.filter(Boolean) as { w: Word; query: string; img: { url: string; title?: string } }[];
   for (let i = 0; i < hits.length; i++) {
     const start = startOf(hits[i].w);
-    // Show each photo until the next keyword's photo (or +3s / clip end).
-    const next = hits[i + 1] ? startOf(hits[i + 1].w) : Math.min(start + 3, lastEnd);
+    // Show each photo ~2–3s, but never past the next photo or the end of speech
+    // (so nothing lingers over silence / when there's no text).
+    const nextStart = hits[i + 1] ? startOf(hits[i + 1].w) : lastEnd;
+    const end = Math.min(start + PHOTO_DURATION_S, nextStart, lastEnd);
+    if (end - start < 0.8) continue; // drop slivers near the clip end
     cues.push({
       start,
-      end: Math.max(next, start + 1),
+      end,
       query: hits[i].query,
       imageUrl: hits[i].img.url,
       title: hits[i].img.title,
