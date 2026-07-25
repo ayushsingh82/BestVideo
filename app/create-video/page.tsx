@@ -72,6 +72,79 @@ function BrollPreview({ src, cues }: { src: string; cues: Cue[] }) {
   );
 }
 
+type BackdropStyle = "blur" | "image";
+
+/**
+ * Shrinks the video into a smaller frame with a backdrop behind it — either a
+ * blurred loop of the same video (kept in sync with the sharp foreground one,
+ * the Instagram Story technique) or a custom uploaded image.
+ */
+function CanvasFrame({
+  src,
+  backdropStyle,
+  backdropImageUrl,
+}: {
+  src: string;
+  backdropStyle: BackdropStyle;
+  backdropImageUrl: string | null;
+}) {
+  const fgRef = useRef<HTMLVideoElement>(null);
+  const bgRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const fg = fgRef.current;
+    const bg = bgRef.current;
+    if (!fg || !bg || backdropStyle !== "blur") return;
+    const sync = () => {
+      if (Math.abs(bg.currentTime - fg.currentTime) > 0.3) bg.currentTime = fg.currentTime;
+    };
+    const onPlay = () => void bg.play().catch(() => {});
+    const onPause = () => bg.pause();
+    fg.addEventListener("play", onPlay);
+    fg.addEventListener("pause", onPause);
+    fg.addEventListener("timeupdate", sync);
+    fg.addEventListener("seeked", sync);
+    return () => {
+      fg.removeEventListener("play", onPlay);
+      fg.removeEventListener("pause", onPause);
+      fg.removeEventListener("timeupdate", sync);
+      fg.removeEventListener("seeked", sync);
+    };
+  }, [backdropStyle]);
+
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0">
+        {backdropStyle === "blur" ? (
+          <video
+            ref={bgRef}
+            src={src}
+            muted
+            loop
+            playsInline
+            className="h-full w-full scale-125 object-cover blur-2xl brightness-75"
+          />
+        ) : backdropImageUrl ? (
+          <img src={backdropImageUrl} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-xs text-neutral-500">
+            Upload a background image
+          </div>
+        )}
+      </div>
+      <div className="absolute inset-0 flex items-center justify-center p-[8%]">
+        <video
+          ref={fgRef}
+          src={src}
+          controls
+          playsInline
+          className="h-full max-h-full w-full max-w-full rounded-lg object-contain shadow-2xl"
+        />
+      </div>
+    </div>
+  );
+}
+
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
@@ -178,6 +251,18 @@ export default function CreateVideoPage() {
   const [fontId, setFontId] = useState(CAPTION_FONTS[0].id);
   const [fontColor, setFontColor] = useState("#FFFFFF");
   const [highlightColor, setHighlightColor] = useState("#FFE600");
+
+  // Canvas backdrop — shrink the video into a frame with a background behind it.
+  const [canvasEnabled, setCanvasEnabled] = useState(false);
+  const [backdropStyle, setBackdropStyle] = useState<BackdropStyle>("blur");
+  const [backdropImageUrl, setBackdropImageUrl] = useState<string | null>(null);
+  const backdropInputRef = useRef<HTMLInputElement>(null);
+
+  function selectBackdropImage(f: File | undefined) {
+    if (!f) return;
+    if (backdropImageUrl) URL.revokeObjectURL(backdropImageUrl);
+    setBackdropImageUrl(URL.createObjectURL(f));
+  }
 
   const activeFont = CAPTION_FONTS.find((f) => f.id === fontId) ?? CAPTION_FONTS[0];
   const uploading = status === "uploading";
@@ -351,12 +436,69 @@ export default function CreateVideoPage() {
             </div>
 
             {/* B-roll */}
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start justify-between gap-4 border-b border-neutral-200 pb-8">
               <div>
                 <h3 className="text-sm font-semibold">B-roll images</h3>
                 <p className="mt-0.5 text-xs text-neutral-500">Auto-placed above your face · on by default</p>
               </div>
               <Toggle checked={broll} onChange={setBroll} />
+            </div>
+
+            {/* Canvas backdrop */}
+            <div className="space-y-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-semibold">Canvas backdrop</h3>
+                  <p className="mt-0.5 text-xs text-neutral-500">Shrink your video into a frame with a background</p>
+                </div>
+                <Toggle checked={canvasEnabled} onChange={setCanvasEnabled} />
+              </div>
+
+              <div className={canvasEnabled ? "space-y-4" : "pointer-events-none space-y-4 opacity-40"}>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBackdropStyle("blur")}
+                    className={`flex-1 border px-3 py-2.5 text-xs font-medium transition ${
+                      backdropStyle === "blur"
+                        ? "border-neutral-950 bg-neutral-50"
+                        : "border-neutral-200 hover:border-neutral-300"
+                    }`}
+                  >
+                    Blurred video
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBackdropStyle("image")}
+                    className={`flex-1 border px-3 py-2.5 text-xs font-medium transition ${
+                      backdropStyle === "image"
+                        ? "border-neutral-950 bg-neutral-50"
+                        : "border-neutral-200 hover:border-neutral-300"
+                    }`}
+                  >
+                    Custom image
+                  </button>
+                </div>
+
+                {backdropStyle === "image" && (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => backdropInputRef.current?.click()}
+                      className="w-full border border-dashed border-neutral-300 px-3 py-2.5 text-xs font-medium text-neutral-600 transition hover:border-neutral-400 hover:bg-neutral-50"
+                    >
+                      {backdropImageUrl ? "Change background image" : "Upload background image"}
+                    </button>
+                    <input
+                      ref={backdropInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => selectBackdropImage(e.target.files?.[0])}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </aside>
@@ -433,7 +575,17 @@ export default function CreateVideoPage() {
               ) : (
                 <div className="border border-neutral-200">
                   <div className="relative aspect-video w-full bg-black">
-                    {previewUrl && <video src={previewUrl} controls playsInline className="h-full w-full object-contain" />}
+                    {previewUrl && canvasEnabled ? (
+                      <CanvasFrame
+                        src={previewUrl}
+                        backdropStyle={backdropStyle}
+                        backdropImageUrl={backdropImageUrl}
+                      />
+                    ) : (
+                      previewUrl && (
+                        <video src={previewUrl} controls playsInline className="h-full w-full object-contain" />
+                      )
+                    )}
                     {/* Live caption overlay */}
                     {subtitles && (
                       <div className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center px-6 text-center">
