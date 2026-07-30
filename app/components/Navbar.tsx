@@ -9,7 +9,6 @@ const navLinks = [
   { name: "How it works", href: "/#how" },
   { name: "Features", href: "/#features" },
   { name: "Pricing", href: "/#pricing" },
-  { name: "Style analyzer", href: "/analyze-style" },
 ];
 
 const ENTER_EASE = [0.16, 1, 0.3, 1] as const;
