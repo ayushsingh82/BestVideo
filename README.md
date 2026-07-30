@@ -6,6 +6,52 @@
 
 ---
 
+## 0. Current Implementation Snapshot
+
+> Sections 1–15 below describe the original target architecture (DB + S3 + Remotion pipeline).
+> The current build takes a lighter-weight path to the same product, calling ZapCap directly with
+> no DB/S3/Redis required yet. **`plan.md` is the source of truth for day-to-day roadmap and design
+> notes — read that first when picking up work.** This section is a snapshot, updated as features ship.
+
+**Live routes:**
+- `/create-video` — upload a talking-head clip, style it (captions, B-roll, frame border), then
+  either burn in captions (via ZapCap) or overlay contextual photos on the original video.
+- `/projects/[id]` — polls the ZapCap render job, plays the captioned result.
+- `/analyze-style` — paste a YouTube URL, get a caption-cadence pacing profile. Unlinked from the
+  navbar for now (still reachable directly by URL).
+
+**`app/create-video/` structure** — split into focused files so new features add a file instead
+of growing `page.tsx`:
+```
+app/create-video/
+├── page.tsx              # orchestration only: state, upload/caption/photo handlers, layout
+├── types.ts              # Status, Cue
+├── constants.ts          # font/highlight color presets, formatSize
+├── frame.ts              # frame border presets, aspect ratios, inset/position math
+├── fonts.ts              # next/font caption fonts
+└── components/
+    ├── Spinner.tsx
+    ├── Toggle.tsx
+    ├── ColorRow.tsx
+    ├── CaptionSample.tsx
+    ├── BrollPreview.tsx   # top-30% B-roll overlay player
+    └── FramedVideo.tsx    # border-frame preview wrapper + film-strip holes
+```
+
+**Key features shipped:**
+- Captions via ZapCap (`services/captioning.ts`) — template-driven styling, free-tier watermark.
+- Contextual B-roll: Pexels/Openverse images matched to transcript keywords, overlaid on the top
+  30% of the frame, timed to speech (`app/api/broll/route.ts`).
+- Frame borders: 9 presets (solid colors, gradients, polaroid, film strip, hazard stripes), with
+  user-adjustable border thickness (5–25%) and aspect ratio (16:9 / 9:16 / 1:1 / 4:5) — pure CSS,
+  no image assets or extra APIs.
+
+See `plan.md` for the prioritized roadmap: standalone transcription, smart B-roll placement (avoid
+the face), smarter keyword→image matching, Remotion burned-in render, persistence, style-analyzer
+phase 2, plus the planned full-screen "cutaway" effect.
+
+---
+
 ## 1. Product Overview
 
 **BestVideo** turns **raw talking-head footage into a finished, post-ready video** — no timeline editing.
