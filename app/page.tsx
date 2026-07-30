@@ -121,6 +121,10 @@ export default function Home() {
 
       {/* Hero — white */}
       <section className="relative overflow-hidden bg-white px-4 pt-44 pb-28 text-center text-neutral-950 sm:px-6 sm:pt-56 sm:pb-40">
+        {/* Animated wave background — matches the footer */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-20">
+          <AnimatedWave />
+        </div>
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_55%_45%_at_50%_0%,rgba(0,0,0,0.05),transparent_70%)]" />
         <div className="relative z-10 mx-auto max-w-5xl">
           <Reveal>
