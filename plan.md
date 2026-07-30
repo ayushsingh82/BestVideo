@@ -187,6 +187,48 @@ in the same style as the reference.
 - **Caveat:** downloading arbitrary YouTube videos for analysis has ToS/copyright considerations —
   scope this to the user's own upload or a video they have rights to, not arbitrary scraping.
 
+### 7. Full-screen cutaway (hide the person on a keyword)
+**Goal:** On strong keywords, replace the whole frame with B-roll (image/video) or a big text
+card for 1–3 words, then cut back to the talking head — the "cutaway" editing style used by
+Opus Clip, Submagic, Vidyo.ai, CapCut, Veed.io. This is a full-frame swap, not face
+segmentation/matting — no need to cut the person out of the frame, just switch the video source
+for a couple seconds and switch back. Different from item 2 (which *avoids* the face for a small
+strip overlay) — this intentionally covers it.
+
+**APIs — mostly already wired:**
+
+| Need | Have |
+|---|---|
+| Word-level transcript | ZapCap (current) / Whisper (planned item 1) |
+| Keyword picking | `important` flags now; Claude Haiku extraction planned (item 3) |
+| Stock images | Pexels + Openverse (`services/` broll path) |
+| Stock **video** clips (punchier cutaway than a still) | Not yet — add Pexels Video API (same key already have) or Pixabay Video (free, keyless) |
+| Custom/AI-generated B-roll when no stock match | Already wired: `services/image-generation.ts` + `services/video-generation.ts` via Replicate (FLUX / SVD) |
+| Text-card cutaway ("BIG WORD" on solid/blurred bg) | No API — pure render, same as captions |
+
+**Plan:**
+- [ ] `/api/broll` cues get a `type: 'strip' | 'cutaway'` field — strong/noun-like `important`
+  keywords → `cutaway`, weaker ones stay `strip`.
+- [ ] For `cutaway` cues, resolve a Pexels video clip, else a stock image, else a
+  Replicate-generated image/clip (same fallback chain broll already uses for images).
+- [ ] `BrollPreview`: a `cutaway` cue fills 100% of the frame (hides the person) instead of the
+  top-30% strip; `strip` cues behave as today.
+- [ ] Text-only cutaways: full-screen styled `<div>` with the keyword/phrase, timed like captions,
+  no image API needed.
+- [ ] Carry into the Remotion render (item 4) as a full-screen `<AbsoluteFill>` swap.
+
+---
+
+### 8. Prebuilt frame presets (canvas mode)
+**Goal:** Alongside the existing "Canvas backdrop" (blur / custom image, item 2.5), let the user
+pick a prebuilt **frame** for the shrunk video — e.g. phone bezel, browser-window chrome,
+polaroid border, gradient border — instead of just a plain rounded rectangle.
+- [ ] CSS-drawn presets to start (no image assets needed): `none`, `rounded` (current default),
+  `phone`, `browser`, `polaroid`, `gradient`.
+- [ ] New `frameStyle` state in `create-video/page.tsx`, selectable independently of
+  `backdropStyle` (blur/image backdrop + a frame can combine).
+- [ ] `CanvasFrame` renders the chosen frame chrome around the foreground `<video>`.
+
 ## Working agreement
 
 - **When the user says "continue work" / "continue further" (or similar), READ THIS `plan.md` first** and pick up the next unchecked roadmap item (top-down), unless told otherwise.

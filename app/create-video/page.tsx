@@ -72,74 +72,94 @@ function BrollPreview({ src, cues }: { src: string; cues: Cue[] }) {
   );
 }
 
-type BackdropStyle = "blur" | "image";
+type FrameStyle =
+  | "black"
+  | "white"
+  | "navy"
+  | "sunset"
+  | "ocean"
+  | "berry"
+  | "polaroid"
+  | "filmstrip"
+  | "stripes";
 
-/**
- * Shrinks the video into a smaller frame with a backdrop behind it — either a
- * blurred loop of the same video (kept in sync with the sharp foreground one,
- * the Instagram Story technique) or a custom uploaded image.
- */
-function CanvasFrame({
+// Border thickness is now user-controlled (see borderPct state) instead of fixed per preset.
+// "polaroid" keeps a slightly deeper bottom for the classic look (see frameInsetStyle below).
+const FRAME_STYLES: { id: FrameStyle; label: string; border: string }[] = [
+  // Single colors
+  { id: "black", label: "Classic black", border: "bg-neutral-950" },
+  { id: "white", label: "Clean white", border: "bg-white" },
+  { id: "navy", label: "Navy", border: "bg-blue-950" },
+  // Multicolor gradients
+  { id: "sunset", label: "Sunset", border: "bg-gradient-to-br from-orange-400 via-rose-500 to-purple-600" },
+  { id: "ocean", label: "Ocean", border: "bg-gradient-to-br from-cyan-400 via-sky-500 to-blue-700" },
+  { id: "berry", label: "Berry", border: "bg-gradient-to-br from-fuchsia-500 via-purple-500 to-indigo-600" },
+  // Designed frames — polaroid is a warm off-white (not plain white, so it reads distinct from
+  // "Clean white" in the picker) and stripes is a 2-color hazard-tape pattern.
+  { id: "polaroid", label: "Polaroid", border: "bg-stone-100" },
+  { id: "filmstrip", label: "Film strip", border: "bg-neutral-950" },
+  {
+    id: "stripes",
+    label: "Hazard",
+    border: "bg-[repeating-linear-gradient(45deg,#0a0a0a_0px,#0a0a0a_14px,#facc15_14px,#facc15_28px)]",
+  },
+];
+
+const ASPECT_RATIOS: { id: string; label: string; value: string }[] = [
+  { id: "16:9", label: "16:9", value: "16 / 9" },
+  { id: "9:16", label: "9:16", value: "9 / 16" },
+  { id: "1:1", label: "1:1", value: "1 / 1" },
+  { id: "4:5", label: "4:5", value: "4 / 5" },
+];
+
+/** How far the border eats into the frame on the bottom edge (polaroid runs a bit deeper). */
+function frameBottomPct(id: FrameStyle, pct: number): number {
+  return id === "polaroid" ? pct + 4 : pct;
+}
+
+/** Inset for the inner video window, in %, driven by the user's border-thickness slider. */
+function frameInsetStyle(id: FrameStyle, pct: number): React.CSSProperties {
+  return { top: `${pct}%`, left: `${pct}%`, right: `${pct}%`, bottom: `${frameBottomPct(id, pct)}%` };
+}
+
+/** Sprocket-hole row along the top and bottom border of the film-strip frame. */
+function FilmStripHoles() {
+  const dots = Array.from({ length: 9 });
+  return (
+    <>
+      <div className="absolute inset-x-0 top-[4%] flex justify-between px-[7%]">
+        {dots.map((_, i) => (
+          <span key={i} className="h-2 w-2 rounded-[2px] bg-neutral-50/80" />
+        ))}
+      </div>
+      <div className="absolute inset-x-0 bottom-[4%] flex justify-between px-[7%]">
+        {dots.map((_, i) => (
+          <span key={i} className="h-2 w-2 rounded-[2px] bg-neutral-50/80" />
+        ))}
+      </div>
+    </>
+  );
+}
+
+/** Wraps the video in a preset border frame, thickness driven by borderPct. */
+function FramedVideo({
   src,
-  backdropStyle,
-  backdropImageUrl,
+  frameStyle,
+  borderPct,
 }: {
   src: string;
-  backdropStyle: BackdropStyle;
-  backdropImageUrl: string | null;
+  frameStyle: FrameStyle;
+  borderPct: number;
 }) {
-  const fgRef = useRef<HTMLVideoElement>(null);
-  const bgRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    const fg = fgRef.current;
-    const bg = bgRef.current;
-    if (!fg || !bg || backdropStyle !== "blur") return;
-    const sync = () => {
-      if (Math.abs(bg.currentTime - fg.currentTime) > 0.3) bg.currentTime = fg.currentTime;
-    };
-    const onPlay = () => void bg.play().catch(() => {});
-    const onPause = () => bg.pause();
-    fg.addEventListener("play", onPlay);
-    fg.addEventListener("pause", onPause);
-    fg.addEventListener("timeupdate", sync);
-    fg.addEventListener("seeked", sync);
-    return () => {
-      fg.removeEventListener("play", onPlay);
-      fg.removeEventListener("pause", onPause);
-      fg.removeEventListener("timeupdate", sync);
-      fg.removeEventListener("seeked", sync);
-    };
-  }, [backdropStyle]);
-
+  const preset = FRAME_STYLES.find((f) => f.id === frameStyle) ?? FRAME_STYLES[0];
   return (
-    <div className="absolute inset-0 overflow-hidden">
-      <div className="absolute inset-0">
-        {backdropStyle === "blur" ? (
-          <video
-            ref={bgRef}
-            src={src}
-            muted
-            loop
-            playsInline
-            className="h-full w-full scale-125 object-cover blur-2xl brightness-75"
-          />
-        ) : backdropImageUrl ? (
-          <img src={backdropImageUrl} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-xs text-neutral-500">
-            Upload a background image
-          </div>
-        )}
-      </div>
-      <div className="absolute inset-0 flex items-center justify-center p-[8%]">
-        <video
-          ref={fgRef}
-          src={src}
-          controls
-          playsInline
-          className="h-full max-h-full w-full max-w-full rounded-lg object-contain shadow-2xl"
-        />
+    <div className={`relative h-full w-full ${preset.border}`}>
+      {preset.id === "filmstrip" && <FilmStripHoles />}
+      <div
+        className={`absolute overflow-hidden ${preset.id === "polaroid" ? "shadow-md" : "shadow-inner"}`}
+        style={frameInsetStyle(preset.id, borderPct)}
+      >
+        <video src={src} controls playsInline className="h-full w-full object-cover" />
       </div>
     </div>
   );
@@ -252,19 +272,14 @@ export default function CreateVideoPage() {
   const [fontColor, setFontColor] = useState("#FFFFFF");
   const [highlightColor, setHighlightColor] = useState("#FFE600");
 
-  // Canvas backdrop — shrink the video into a frame with a background behind it.
-  const [canvasEnabled, setCanvasEnabled] = useState(false);
-  const [backdropStyle, setBackdropStyle] = useState<BackdropStyle>("blur");
-  const [backdropImageUrl, setBackdropImageUrl] = useState<string | null>(null);
-  const backdropInputRef = useRef<HTMLInputElement>(null);
-
-  function selectBackdropImage(f: File | undefined) {
-    if (!f) return;
-    if (backdropImageUrl) URL.revokeObjectURL(backdropImageUrl);
-    setBackdropImageUrl(URL.createObjectURL(f));
-  }
+  const [frameEnabled, setFrameEnabled] = useState(false);
+  const [frameStyle, setFrameStyle] = useState<FrameStyle>("black");
+  const [borderPct, setBorderPct] = useState(12);
+  const [aspectRatio, setAspectRatio] = useState("16:9");
 
   const activeFont = CAPTION_FONTS.find((f) => f.id === fontId) ?? CAPTION_FONTS[0];
+  const activeFramePreset = FRAME_STYLES.find((f) => f.id === frameStyle) ?? FRAME_STYLES[0];
+  const activeAspect = ASPECT_RATIOS.find((r) => r.id === aspectRatio) ?? ASPECT_RATIOS[0];
   const uploading = status === "uploading";
 
   function selectFile(f: File | undefined) {
@@ -444,60 +459,74 @@ export default function CreateVideoPage() {
               <Toggle checked={broll} onChange={setBroll} />
             </div>
 
-            {/* Canvas backdrop */}
-            <div className="space-y-5">
+            {/* Frame border */}
+            <div className="space-y-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-sm font-semibold">Canvas backdrop</h3>
-                  <p className="mt-0.5 text-xs text-neutral-500">Shrink your video into a frame with a background</p>
+                  <h3 className="text-sm font-semibold">Frame</h3>
+                  <p className="mt-0.5 text-xs text-neutral-500">A border around your video</p>
                 </div>
-                <Toggle checked={canvasEnabled} onChange={setCanvasEnabled} />
+                <Toggle checked={frameEnabled} onChange={setFrameEnabled} />
               </div>
 
-              <div className={canvasEnabled ? "space-y-4" : "pointer-events-none space-y-4 opacity-40"}>
+              <div>
+                <p className="mb-2 text-xs font-medium text-neutral-500">Aspect ratio</p>
                 <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setBackdropStyle("blur")}
-                    className={`flex-1 border px-3 py-2.5 text-xs font-medium transition ${
-                      backdropStyle === "blur"
-                        ? "border-neutral-950 bg-neutral-50"
-                        : "border-neutral-200 hover:border-neutral-300"
-                    }`}
-                  >
-                    Blurred video
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBackdropStyle("image")}
-                    className={`flex-1 border px-3 py-2.5 text-xs font-medium transition ${
-                      backdropStyle === "image"
-                        ? "border-neutral-950 bg-neutral-50"
-                        : "border-neutral-200 hover:border-neutral-300"
-                    }`}
-                  >
-                    Custom image
-                  </button>
+                  {ASPECT_RATIOS.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => setAspectRatio(r.id)}
+                      className={`flex-1 border px-2 py-2 text-xs font-medium transition ${
+                        aspectRatio === r.id
+                          ? "border-neutral-950 bg-neutral-50"
+                          : "border-neutral-200 hover:border-neutral-300"
+                      }`}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className={frameEnabled ? "space-y-4" : "pointer-events-none space-y-4 opacity-40"}>
+                <div>
+                  <div className="mb-2 flex items-center justify-between text-xs font-medium text-neutral-500">
+                    <span>Border thickness</span>
+                    <span>{borderPct}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={5}
+                    max={25}
+                    step={1}
+                    value={borderPct}
+                    onChange={(e) => setBorderPct(Number(e.target.value))}
+                    className="w-full accent-neutral-950"
+                  />
                 </div>
 
-                {backdropStyle === "image" && (
-                  <div>
+                <div className="grid grid-cols-3 gap-2">
+                  {FRAME_STYLES.map((f) => (
                     <button
+                      key={f.id}
                       type="button"
-                      onClick={() => backdropInputRef.current?.click()}
-                      className="w-full border border-dashed border-neutral-300 px-3 py-2.5 text-xs font-medium text-neutral-600 transition hover:border-neutral-400 hover:bg-neutral-50"
+                      onClick={() => setFrameStyle(f.id)}
+                      title={f.label}
+                      aria-label={f.label}
+                      className={`aspect-video overflow-hidden rounded border transition ${
+                        frameEnabled && frameStyle === f.id
+                          ? "border-neutral-950 ring-1 ring-neutral-950"
+                          : "border-neutral-200 hover:border-neutral-400"
+                      }`}
                     >
-                      {backdropImageUrl ? "Change background image" : "Upload background image"}
+                      <div className={`relative h-full w-full ${f.border}`}>
+                        {f.id === "filmstrip" && <FilmStripHoles />}
+                        <div className="absolute bg-neutral-300" style={frameInsetStyle(f.id, borderPct)} />
+                      </div>
                     </button>
-                    <input
-                      ref={backdropInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => selectBackdropImage(e.target.files?.[0])}
-                    />
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -574,21 +603,25 @@ export default function CreateVideoPage() {
                 </button>
               ) : (
                 <div className="border border-neutral-200">
-                  <div className="relative aspect-video w-full bg-black">
-                    {previewUrl && canvasEnabled ? (
-                      <CanvasFrame
-                        src={previewUrl}
-                        backdropStyle={backdropStyle}
-                        backdropImageUrl={backdropImageUrl}
-                      />
+                  <div className="relative w-full bg-black" style={{ aspectRatio: activeAspect.value }}>
+                    {previewUrl && frameEnabled ? (
+                      <FramedVideo src={previewUrl} frameStyle={frameStyle} borderPct={borderPct} />
                     ) : (
                       previewUrl && (
                         <video src={previewUrl} controls playsInline className="h-full w-full object-contain" />
                       )
                     )}
-                    {/* Live caption overlay */}
+                    {/* Live caption overlay — sits on the video itself, so it shifts up off the
+                        border when a frame is active instead of landing in the frame's margin. */}
                     {subtitles && (
-                      <div className="pointer-events-none absolute inset-x-0 bottom-6 flex justify-center px-6 text-center">
+                      <div
+                        className="pointer-events-none absolute inset-x-0 flex justify-center px-6 text-center"
+                        style={{
+                          bottom: frameEnabled
+                            ? `${frameBottomPct(activeFramePreset.id, borderPct) + 3}%`
+                            : "1.5rem",
+                        }}
+                      >
                         <CaptionSample fontClass={activeFont.className} color={fontColor} highlight={highlightColor} />
                       </div>
                     )}
@@ -613,15 +646,39 @@ export default function CreateVideoPage() {
               <input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={(e) => selectFile(e.target.files?.[0])} />
             </div>
 
-            {/* Caption preview (always visible so style choices are tangible) */}
+            {/* Caption preview (always visible so style choices — captions AND frame — are tangible
+                even before/without a video uploaded) */}
             <div className="mt-6">
               <p className="mb-2 font-mono text-xs uppercase tracking-[0.2em] text-neutral-400">Caption preview</p>
-              <div className="flex min-h-[120px] items-center justify-center border border-neutral-200 bg-neutral-900 px-6 py-8 text-center">
-                {subtitles ? (
-                  <CaptionSample fontClass={activeFont.className} color={fontColor} highlight={highlightColor} />
-                ) : (
-                  <p className="text-sm text-neutral-500">Subtitles are turned off</p>
+              <div
+                className="relative w-full overflow-hidden border border-neutral-200 bg-neutral-900"
+                style={{ aspectRatio: activeAspect.value }}
+              >
+                {frameEnabled && (
+                  <div className={`absolute inset-0 ${activeFramePreset.border}`}>
+                    {activeFramePreset.id === "filmstrip" && <FilmStripHoles />}
+                    <div
+                      className={`absolute bg-neutral-900 ${
+                        activeFramePreset.id === "polaroid" ? "shadow-md" : "shadow-inner"
+                      }`}
+                      style={frameInsetStyle(activeFramePreset.id, borderPct)}
+                    />
+                  </div>
                 )}
+                <div
+                  className="pointer-events-none absolute inset-x-0 flex justify-center px-6 text-center"
+                  style={{
+                    bottom: frameEnabled
+                      ? `${frameBottomPct(activeFramePreset.id, borderPct) + 3}%`
+                      : "1.5rem",
+                  }}
+                >
+                  {subtitles ? (
+                    <CaptionSample fontClass={activeFont.className} color={fontColor} highlight={highlightColor} />
+                  ) : (
+                    <p className="text-sm text-neutral-500">Subtitles are turned off</p>
+                  )}
+                </div>
               </div>
             </div>
 
